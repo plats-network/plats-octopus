@@ -58,14 +58,14 @@ std = [
 substrate-wasm-builder = { git = 'https://github.com/paritytech/substrate.git', branch = 'polkadot-v0.9.13' }
 
 [package]
-authors = ['Octopus Network <hi@oct.network>']
+authors = ['Plats Network']
 description = 'A fresh FRAME-based Substrate runtime, ready for hacking.'
 edition = '2021'
-homepage = 'https://oct.network/'
+homepage = ''
 license = 'Apache-2.0'
-name = 'appchain-barnacle-runtime'
+name = 'appchain-plats-runtime'
 publish = false
-repository = 'https://github.com/octopus-network/barnacle/'
+repository = ''
 version = '0.9.13'
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']

@@ -1,32 +1,32 @@
 [package]
-authors = ['Octopus Network <hi@oct.network>']
+authors = ['Plats Network']
 build = 'build.rs'
-description = 'A minimal template for octopus appchain.'
+description = 'A minimal template for octopus appchain Plats.'
 edition = '2021'
-homepage = 'https://oct.network/'
+homepage = ''
 license = 'Apache-2.0'
-name = 'appchain-barnacle'
+name = 'plats'
 publish = false
-repository = 'https://github.com/octopus-network/barnacle/'
+repository = ''
 version = '0.9.13'
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
 
 [features]
 default = []
-runtime-benchmarks = ['appchain-barnacle-runtime/runtime-benchmarks']
+runtime-benchmarks = ['appchain-plats-runtime/runtime-benchmarks']
 
 [build-dependencies]
 substrate-build-script-utils = { git = 'https://github.com/paritytech/substrate.git', branch = 'polkadot-v0.9.13' }
 
 [[bin]]
-name = 'appchain-barnacle'
+name = 'plats'
 
 [dependencies]
 jsonrpc-core = '18.0.0'
 structopt = '0.3.25'
 
-appchain-barnacle-runtime = { path = '../runtime' }
+appchain-plats-runtime = { path = '../runtime' }
 
 frame-benchmarking = { git = 'https://github.com/paritytech/substrate.git', branch = 'polkadot-v0.9.13' }
 frame-benchmarking-cli = { git = 'https://github.com/paritytech/substrate.git', branch = 'polkadot-v0.9.13' }
