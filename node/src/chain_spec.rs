@@ -236,3 +236,64 @@ fn testnet_genesis(
 		},
 	}
 }
+
+
+
+pub fn plats_testnet_config() -> Result<ChainSpec, String> {
+    let wasm_binary = WASM_BINARY.ok_or("Staging wasm binary not available".to_string())?;
+	let initial_authorities: Vec<(AuraId, GrandpaId)> = vec![
+		(
+            hex!["7248900331fe3d1dc7a5c503e870bd7a5f17b3df73bbdca440c419761a99330c"].unchecked_into(),
+			hex!["67a92511dad839bd065a0183ce447273c72cc267aca1f15291d9fc02ab1a2ae1"].unchecked_into(),
+		),
+		(
+            hex!["8e122f2afc57fae170be5027563b332273e62d50b3f9daee19ebeeb7be43b97b"].unchecked_into(),
+			hex!["e9c46eb1281c9d2ed5cc0c02c9a89c8d727c386143aef5bad44fb67118ac1710"].unchecked_into(),
+		),
+	];
+
+	let endownment_account:Vec<(AccountId, Balance)> = vec![
+        (
+			//root
+            hex!["16c1e8c292b0ca968ee84d3f33de819dd3d1466ee4a5a025c4c714582e29fa26"].into(),
+			100_000_000_000_000_000
+		),
+		(
+            hex!["7248900331fe3d1dc7a5c503e870bd7a5f17b3df73bbdca440c419761a99330c"].into(),
+			100_000_000_000_000_000
+		),
+
+        (
+            hex!["8e122f2afc57fae170be5027563b332273e62d50b3f9daee19ebeeb7be43b97b"].into(),
+			100_000_000_000_000_000
+		),
+
+        
+	];
+	//let properties = serde_json::from_str(data).unwrap();
+
+    Ok(ChainSpec::from_genesis(
+        "Plats Testnet",
+        "Plats_Testnet",
+        ChainType::Live,
+        move || plats_testnet_genesis(
+            wasm_binary,
+			initial_authorities.clone(),
+            /* Sudo Account */
+            hex!["16c1e8c292b0ca968ee84d3f33de819dd3d1466ee4a5a025c4c714582e29fa26"].into(),
+            endownment_account.clone(),
+            true,
+        ),
+        vec![],
+		None,
+        Some(DEFAULT_PROTOCOL_ID),
+        None,
+		Some(
+			serde_json::from_str(
+				"{\"tokenDecimals\": 12, \"tokenSymbol\": \"PLT\", \"SS58Prefix\": 42}",
+			)
+			.expect("Provided valid json map"),
+		),
+		None,
+    ))
+}
