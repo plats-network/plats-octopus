@@ -128,9 +128,17 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	transaction_version: 1,
 };
 
-pub const MILLICENTS: Balance = 10_000_000_000_000;
-pub const CENTS: Balance = 1_000 * MILLICENTS; // assume this is worth about a cent.
-pub const DOLLARS: Balance = 100 * CENTS;
+
+/// The native token, uses 18 decimals of precision.
+pub mod currency {
+	use super::Balance;
+
+	pub const UNITS: Balance = 1_000_000_000_000_000_000;
+	pub const PLT: Balance = UNITS;
+	pub const CENTS: Balance = PLT / 100;
+	pub const MILLICENTS: Balance = CENTS / 1_000;
+
+}
 
 /// Since BABE is probabilistic this is the average expected block time that
 /// we are targeting. Blocks will be produced at a minimum duration defined
@@ -344,7 +352,7 @@ impl pallet_timestamp::Config for Runtime {
 }
 
 parameter_types! {
-	pub const ExistentialDeposit: Balance = 1 * DOLLARS;
+	pub const ExistentialDeposit: Balance = 1 * currency::PLT;
 	// For weight estimation, we assume that the most locks on an individual account will be 50.
 	// This number may need to be adjusted in the future if this assumption no longer holds true.
 	pub const MaxLocks: u32 = 50;
@@ -497,8 +505,8 @@ impl pallet_mmr::Config for Runtime {
 }
 
 parameter_types! {
-	pub const ClassDeposit: Balance = 100 * DOLLARS;
-	pub const InstanceDeposit: Balance = 1 * DOLLARS;
+	pub const ClassDeposit: Balance = 100 * currency::PLT;
+	pub const InstanceDeposit: Balance = 1 * currency::PLT;
 	pub const KeyLimit: u32 = 32;
 	pub const ValueLimit: u32 = 256;
 }
@@ -613,11 +621,11 @@ impl pallet_octopus_upward_messages::Config for Runtime {
 }
 
 parameter_types! {
-	pub const AssetDeposit: Balance = 100 * DOLLARS;
-	pub const ApprovalDeposit: Balance = 1 * DOLLARS;
+	pub const AssetDeposit: Balance = 100 * currency::PLT;
+	pub const ApprovalDeposit: Balance = 1 * currency::PLT;
 	pub const StringLimit: u32 = 50;
-	pub const MetadataDepositBase: Balance = 10 * DOLLARS;
-	pub const MetadataDepositPerByte: Balance = 1 * DOLLARS;
+	pub const MetadataDepositBase: Balance = 10 * currency::PLT;
+	pub const MetadataDepositPerByte: Balance = 1 * currency::PLT;
 }
 
 pub type AssetBalance = u128;
