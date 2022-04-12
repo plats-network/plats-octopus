@@ -1,5 +1,5 @@
 use appchain_plats_runtime::{
-	currency::PLT,
+	currency::{PLT,UNITS},
 	opaque::{Block, SessionKeys},
 	AccountId, BabeConfig, Balance, BalancesConfig, GenesisConfig, GrandpaConfig, ImOnlineConfig,
 	OctopusAppchainConfig, OctopusLposConfig, SessionConfig, Signature, SudoConfig, SystemConfig,
@@ -17,7 +17,6 @@ use sp_finality_grandpa::AuthorityId as GrandpaId;
 use sp_runtime::traits::{IdentifyAccount, Verify};
 
 use hex_literal::hex;
-use serde_json::json;
 use sp_core::crypto::UncheckedInto;
 
 // The URL for the telemetry server.

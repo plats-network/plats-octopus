@@ -52,6 +52,7 @@ std = [
     'pallet-octopus-appchain/std',
     'pallet-octopus-lpos/std',
     'pallet-octopus-upward-messages/std',
+    'pallet-task/std',
 ]
 
 [build-dependencies]
@@ -76,6 +77,8 @@ hex-literal = { version = '0.3.4', optional = true }
 scale-info = { version = '1.0', default-features = false, features = ['derive'] }
 
 pallet-template = { path = '../pallets/template', version = '3.0.0', default-features = false }
+pallet-task = { path = '../pallets/task', version = '3.0.0', default-features = false }
+
 
 frame-benchmarking = { git = 'https://github.com/paritytech/substrate.git', branch = 'polkadot-v0.9.13', default-features = false, optional = true }
 frame-system-benchmarking = { git = 'https://github.com/paritytech/substrate.git', branch = 'polkadot-v0.9.13', default-features = false, optional = true }

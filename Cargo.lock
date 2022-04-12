@@ -140,6 +140,7 @@ dependencies = [
  "pallet-octopus-upward-messages",
  "pallet-session",
  "pallet-sudo",
+ "pallet-task",
  "pallet-template",
  "pallet-timestamp",
  "pallet-transaction-payment",
@@ -4195,6 +4196,20 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
+]
+
+[[package]]
+name = "pallet-task"
+version = "3.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
 ]
 
 [[package]]
