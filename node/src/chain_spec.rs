@@ -320,7 +320,7 @@ pub fn staging_testnet_config() -> Result<ChainSpec, String> {
 		// Properties
 		Some(
 			serde_json::from_str(
-				"{\"tokenDecimals\": 12, \"tokenSymbol\": \"PLT\", \"SS58Prefix\": 42}",
+				"{\"tokenDecimals\": 18, \"tokenSymbol\": \"PLT\", \"SS58Prefix\": 42}",
 			)
 			.expect("Provided valid json map"),
 		),
@@ -339,7 +339,7 @@ fn plats_testnet_genesis(
 ) -> GenesisConfig {
 	let validators = initial_authorities.iter().map(|x| (x.0.clone(), STASH)).collect::<Vec<_>>();
 
-	const STASH: Balance = 100 * 1_000_000_000_000_000_000; // 100 OCT with 18 decimals
+	const STASH: Balance = 100 * UNITS; // 100 OCT with 18 decimals
 
 	GenesisConfig {
 		system: SystemConfig {
