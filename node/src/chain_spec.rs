@@ -1,7 +1,9 @@
 use appchain_plats_runtime::{
-	opaque::Block, opaque::SessionKeys, AccountId, BabeConfig, Balance, BalancesConfig,
-	GenesisConfig, GrandpaConfig, ImOnlineConfig, OctopusAppchainConfig, OctopusLposConfig,
-	SessionConfig, Signature, SudoConfig, SystemConfig, DOLLARS, WASM_BINARY,
+	currency::PLT,
+	opaque::{Block, SessionKeys},
+	AccountId, BabeConfig, Balance, BalancesConfig, GenesisConfig, GrandpaConfig, ImOnlineConfig,
+	OctopusAppchainConfig, OctopusLposConfig, SessionConfig, Signature, SudoConfig, SystemConfig,
+	WASM_BINARY,
 };
 use beefy_primitives::crypto::AuthorityId as BeefyId;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
@@ -13,6 +15,10 @@ use sp_consensus_babe::AuthorityId as BabeId;
 use sp_core::{sr25519, Pair, Public};
 use sp_finality_grandpa::AuthorityId as GrandpaId;
 use sp_runtime::traits::{IdentifyAccount, Verify};
+
+use hex_literal::hex;
+use serde_json::json;
+use sp_core::crypto::UncheckedInto;
 
 // The URL for the telemetry server.
 // const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
@@ -185,7 +191,7 @@ fn testnet_genesis(
 
 	let validators = initial_authorities.iter().map(|x| (x.0.clone(), STASH)).collect::<Vec<_>>();
 
-	const ENDOWMENT: Balance = 10_000_000 * DOLLARS;
+	const ENDOWMENT: Balance = 10_000_000 * PLT;
 	const STASH: Balance = 100 * 1_000_000_000_000_000_000; // 100 OCT with 18 decimals
 
 	GenesisConfig {
@@ -226,9 +232,9 @@ fn testnet_genesis(
 			anchor_contract: "".to_string(),
 			asset_id_by_name: vec![("usdc.testnet".to_string(), 0)],
 			validators,
-			premined_amount: 1024 * DOLLARS,
+			premined_amount: 1024 * PLT,
 		},
-		octopus_lpos: OctopusLposConfig { era_payout: 2 * DOLLARS, ..Default::default() },
+		octopus_lpos: OctopusLposConfig { era_payout: 2 * PLT, ..Default::default() },
 		octopus_assets: Default::default(),
 		sudo: SudoConfig {
 			// Assign network admin rights.
@@ -237,96 +243,102 @@ fn testnet_genesis(
 	}
 }
 
+pub fn staging_testnet_config() -> Result<ChainSpec, String> {
+	let wasm_binary = WASM_BINARY.ok_or_else(|| "WASM not available".to_string())?;
 
-
-pub fn plats_testnet_config() -> Result<ChainSpec, String> {
-    let wasm_binary = WASM_BINARY.ok_or("Staging wasm binary not available".to_string())?;
-	let initial_authorities: Vec<(AuraId, GrandpaId)> = vec![
-		(
-            hex!["7248900331fe3d1dc7a5c503e870bd7a5f17b3df73bbdca440c419761a99330c"].unchecked_into(),
-			hex!["67a92511dad839bd065a0183ce447273c72cc267aca1f15291d9fc02ab1a2ae1"].unchecked_into(),
-		),
-		(
-            hex!["8e122f2afc57fae170be5027563b332273e62d50b3f9daee19ebeeb7be43b97b"].unchecked_into(),
-			hex!["e9c46eb1281c9d2ed5cc0c02c9a89c8d727c386143aef5bad44fb67118ac1710"].unchecked_into(),
-		),
-	];
-
-	let endownment_account:Vec<(AccountId, Balance)> = vec![
-        (
-			//root
-            hex!["16c1e8c292b0ca968ee84d3f33de819dd3d1466ee4a5a025c4c714582e29fa26"].into(),
-			100_000_000_000_000_000
-		),
-		(
-            hex!["7248900331fe3d1dc7a5c503e870bd7a5f17b3df73bbdca440c419761a99330c"].into(),
-			100_000_000_000_000_000
-		),
-
-        (
-            hex!["8e122f2afc57fae170be5027563b332273e62d50b3f9daee19ebeeb7be43b97b"].into(),
-			100_000_000_000_000_000
-		),
-
-        
-	];
-	//let properties = serde_json::from_str(data).unwrap();
-
-    Ok(ChainSpec::from_genesis(
-        "Plats Testnet",
-        "Plats_Testnet",
-        ChainType::Live,
-        move || plats_testnet_genesis(
-            wasm_binary,
-			initial_authorities.clone(),
-            /* Sudo Account */
-            hex!["16c1e8c292b0ca968ee84d3f33de819dd3d1466ee4a5a025c4c714582e29fa26"].into(),
-            endownment_account.clone(),
-            true,
-        ),
-        vec![],
+	Ok(ChainSpec::from_genesis(
+		// Name
+		"Plats Testnet",
+		// ID
+		"plats_testnet",
+		ChainType::Live,
+		move || {
+			plats_testnet_genesis(
+				// WASM Binary
+				wasm_binary,
+				// Sudo account
+				// 5HVgMkXJGoDGQdnTyah4shbhuaiNCmAUdqCyTdYAnr9T9Y1Q
+				hex!["f03941f93b990c271015d3b485f137e117aab80af0a03b557966927caaa7d44f"].into(),
+				// Initial PoA authorities
+				vec![
+					(
+						// 5GhTbhujpv3nZQx6idibYSwYeNCN7ddpqqjPjwZn43xdvYMT
+						hex!["ccf90463ce9ae4cf881c549b09ddeac1960316930e390ca47eeba95741386e5b"]
+							.into(),
+						// 5GhTbhujpv3nZQx6idibYSwYeNCN7ddpqqjPjwZn43xdvYMT
+						hex!["ccf90463ce9ae4cf881c549b09ddeac1960316930e390ca47eeba95741386e5b"]
+							.unchecked_into(),
+						// 5G5ghjBD9fkx9gR59LQLmQvFnayjaRhdBKqpujvNjYjmx4ks
+						hex!["b1b04b436a8772b6429a549ae68d72fd88b8533462d03d83d9acaf9500b3ca00"]
+							.unchecked_into(),
+						// 5GhTbhujpv3nZQx6idibYSwYeNCN7ddpqqjPjwZn43xdvYMT
+						hex!["ccf90463ce9ae4cf881c549b09ddeac1960316930e390ca47eeba95741386e5b"]
+							.unchecked_into(),
+						// KW8mwncjSVKxsCbACjDDk2bLHLsq2gkeVw5xjKW4vSLgWimn1
+						hex!["0302c5928b0861672271346c29e30faa2cb5328e024d1c45f2689e886cb12b6de1"]
+							.unchecked_into(),
+						// 5GhTbhujpv3nZQx6idibYSwYeNCN7ddpqqjPjwZn43xdvYMT
+						hex!["ccf90463ce9ae4cf881c549b09ddeac1960316930e390ca47eeba95741386e5b"]
+							.unchecked_into(),
+					),
+					(
+						// 5H9RP9sy2g9Jaj1GG2zGaytLdxoBHQnqMaKmqvtFPJpYiRV3
+						hex!["e0c5efc09df70c2e236e32ebba4c89a5ae538dacf25412e2a23e6a175291453a"]
+							.into(),
+						// 5H9RP9sy2g9Jaj1GG2zGaytLdxoBHQnqMaKmqvtFPJpYiRV3
+						hex!["e0c5efc09df70c2e236e32ebba4c89a5ae538dacf25412e2a23e6a175291453a"]
+							.unchecked_into(),
+						// 5Dvf9Qq8rmfFdSLACJwvcDEYJMYYq6wYiKkazZrUmWLqUDEE
+						hex!["52556063e8c72431f643c8eb66ba172d5b0d2a095429a8a6e29b522208e26ccd"]
+							.unchecked_into(),
+						// 5H9RP9sy2g9Jaj1GG2zGaytLdxoBHQnqMaKmqvtFPJpYiRV3
+						hex!["e0c5efc09df70c2e236e32ebba4c89a5ae538dacf25412e2a23e6a175291453a"]
+							.unchecked_into(),
+						// KW9uY45eZ65PpHxk21KiXvc8XiTse6amUPKpAWgvxmfhorryw
+						hex!["0334cbe01d6db7bf3d0f4148c468a3a01a5a560f21244d9891c35de23d7c752c24"]
+							.unchecked_into(),
+						// 5H9RP9sy2g9Jaj1GG2zGaytLdxoBHQnqMaKmqvtFPJpYiRV3
+						hex!["e0c5efc09df70c2e236e32ebba4c89a5ae538dacf25412e2a23e6a175291453a"]
+							.unchecked_into(),
+					),
+				],
+				// Pre-funded accounts
+				vec![(
+					// 5HVgMkXJGoDGQdnTyah4shbhuaiNCmAUdqCyTdYAnr9T9Y1Q
+					hex!["f03941f93b990c271015d3b485f137e117aab80af0a03b557966927caaa7d44f"].into(),
+					100_000_000 * PLT,
+				)],
+				true,
+			)
+		},
+		// Bootnodes
+		vec![],
+		// Telemetry
 		None,
-        Some(DEFAULT_PROTOCOL_ID),
-        None,
+		// Protocol ID
+		Some("plats-staging-testnet"),
+		// Properties
 		Some(
 			serde_json::from_str(
 				"{\"tokenDecimals\": 12, \"tokenSymbol\": \"PLT\", \"SS58Prefix\": 42}",
 			)
 			.expect("Provided valid json map"),
 		),
-		None,
-    ))
+		// Extensions
+		Default::default(),
+	))
 }
-
 
 /// Configure initial storage state for FRAME modules.
 fn plats_testnet_genesis(
 	wasm_binary: &[u8],
-	initial_authorities: Vec<(AccountId, BabeId, GrandpaId, ImOnlineId, BeefyId, OctopusId)>,
 	root_key: AccountId,
-	endowed_accounts: Option<Vec<AccountId>>,
+	initial_authorities: Vec<(AccountId, BabeId, GrandpaId, ImOnlineId, BeefyId, OctopusId)>,
+	endowed_accounts: Vec<(AccountId, Balance)>,
 	_enable_println: bool,
 ) -> GenesisConfig {
-	let mut endowed_accounts: Vec<AccountId> = endowed_accounts.unwrap_or_else(|| {
-		vec![
-			get_account_id_from_seed::<sr25519::Public>("Alice"),
-			get_account_id_from_seed::<sr25519::Public>("Bob"),
-			get_account_id_from_seed::<sr25519::Public>("Charlie"),
-			get_account_id_from_seed::<sr25519::Public>("Dave"),
-			get_account_id_from_seed::<sr25519::Public>("Eve"),
-			get_account_id_from_seed::<sr25519::Public>("Ferdie"),
-		]
-	});
-	// endow all authorities.
-	initial_authorities.iter().map(|x| &x.0).for_each(|x| {
-		if !endowed_accounts.contains(x) {
-			endowed_accounts.push(x.clone())
-		}
-	});
-
 	let validators = initial_authorities.iter().map(|x| (x.0.clone(), STASH)).collect::<Vec<_>>();
 
-	const ENDOWMENT: Balance = 10_000_000 * DOLLARS;
 	const STASH: Balance = 100 * 1_000_000_000_000_000_000; // 100 OCT with 18 decimals
 
 	GenesisConfig {
@@ -335,7 +347,7 @@ fn plats_testnet_genesis(
 			code: wasm_binary.to_vec(),
 		},
 		balances: BalancesConfig {
-			balances: endowed_accounts.iter().cloned().map(|x| (x, ENDOWMENT)).collect(),
+			balances: endowed_accounts.iter().cloned().map(|x| (x.0.clone(), x.1)).collect(),
 		},
 		session: SessionConfig {
 			keys: initial_authorities
@@ -367,9 +379,9 @@ fn plats_testnet_genesis(
 			anchor_contract: "".to_string(),
 			asset_id_by_name: vec![("usdc.testnet".to_string(), 0)],
 			validators,
-			premined_amount: 1024 * DOLLARS,
+			premined_amount: 1024 * PLT,
 		},
-		octopus_lpos: OctopusLposConfig { era_payout: 2 * DOLLARS, ..Default::default() },
+		octopus_lpos: OctopusLposConfig { era_payout: 2 * PLT, ..Default::default() },
 		octopus_assets: Default::default(),
 		sudo: SudoConfig {
 			// Assign network admin rights.

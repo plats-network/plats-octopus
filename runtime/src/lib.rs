@@ -115,7 +115,7 @@ pub mod opaque {
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("appchain-plats"),
-	impl_name: create_runtime_str!("appchain-plats"),
+	impl_name: create_runtime_str!("plats"),
 	authoring_version: 1,
 	// The version of the runtime specification. A full node will not attempt to use its native
 	//   runtime in substitute for the on-chain Wasm runtime unless all of `spec_name`,
@@ -128,7 +128,6 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	transaction_version: 1,
 };
 
-
 /// The native token, uses 18 decimals of precision.
 pub mod currency {
 	use super::Balance;
@@ -137,7 +136,6 @@ pub mod currency {
 	pub const PLT: Balance = UNITS;
 	pub const CENTS: Balance = PLT / 100;
 	pub const MILLICENTS: Balance = CENTS / 1_000;
-
 }
 
 /// Since BABE is probabilistic this is the average expected block time that
@@ -374,7 +372,7 @@ impl pallet_balances::Config for Runtime {
 }
 
 parameter_types! {
-	pub const TransactionByteFee: Balance = 10 * MILLICENTS;
+	pub const TransactionByteFee: Balance = 10 * currency::MILLICENTS;
 	pub const OperationalFeeMultiplier: u8 = 5;
 	pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
 	pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(1, 100_000);

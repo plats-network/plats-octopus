@@ -25,8 +25,9 @@ name = 'plats'
 [dependencies]
 jsonrpc-core = '18.0.0'
 structopt = '0.3.25'
-
+hex-literal = "0.3.4"
 appchain-plats-runtime = { path = '../runtime' }
+serde_json = {version = "1.0", default-features = false}
 
 frame-benchmarking = { git = 'https://github.com/paritytech/substrate.git', branch = 'polkadot-v0.9.13' }
 frame-benchmarking-cli = { git = 'https://github.com/paritytech/substrate.git', branch = 'polkadot-v0.9.13' }
