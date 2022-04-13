@@ -352,7 +352,7 @@ impl pallet_timestamp::Config for Runtime {
 }
 
 parameter_types! {
-	pub const ExistentialDeposit: Balance = 1 * currency::PLT;
+	pub const ExistentialDeposit: Balance = 1 * currency::CENTS;
 	// For weight estimation, we assume that the most locks on an individual account will be 50.
 	// This number may need to be adjusted in the future if this assumption no longer holds true.
 	pub const MaxLocks: u32 = 50;
@@ -666,7 +666,8 @@ impl pallet_task::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
 	type DepositMinimum = DepositMinimum;
-	type MaxTasks = MaxTasks;
+	type RejectOrigin = EnsureRoot<AccountId>;
+	type ApprovalOrigin = EnsureRoot<AccountId>;
 	type PalletId = TaskPalletId;
 }
 

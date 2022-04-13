@@ -16,8 +16,27 @@ mod benchmarking;
 
 use frame_support::pallet_prelude::*;
 use frame_system::pallet_prelude::*;
-use frame_support::{traits::Currency, PalletId};
+use frame_support::{traits::{Currency, ReservableCurrency}, PalletId};
 use sp_runtime::traits::AccountIdConversion;
+use scale_info::TypeInfo;
+use codec::{Encode, Decode};
+
+pub type CampaignIndex = u32;
+
+pub type BalanceOf<T> =
+<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+
+
+#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Encode, Decode, Clone, PartialEq, Eq, MaxEncodedLen, RuntimeDebug, TypeInfo)]
+pub struct Campaign<AccountId, Balance> {
+	/// The account creating campaign it.
+	client: AccountId,
+	/// The (total) amount that should be paid if the campaign is accepted.
+	value: Balance,
+	/// The amount held on deposit (reserved) for making this campaign.
+	bond: Balance,
+}
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -28,13 +47,14 @@ pub mod pallet {
 	pub trait Config: frame_system::Config {
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
-		type Currency : Currency<Self::AccountId>;
+		type Currency : Currency<Self::AccountId> + ReservableCurrency<Self::AccountId>;
 
 		#[pallet::constant]
-		type DepositMinimum : Get<u128>;
+		type DepositMinimum : Get<BalanceOf<Self>>;
 
-		#[pallet::constant]
-		type MaxTasks: Get<u32>;
+		type RejectOrigin : EnsureOrigin<Self::Origin>;
+
+		type ApprovalOrigin: EnsureOrigin<Self::Origin>;
 
 		/// The task's pallet id, used for deriving its sovereign account ID.
 		#[pallet::constant]
@@ -46,35 +66,100 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::storage]
-	#[pallet::getter(fn something)]
-	pub(super) type TaskId<T> = StorageValue<_, u32, ValueQuery>;
+	#[pallet::getter(fn campaign_count)]
+	pub(crate) type CampaignCount<T> = StorageValue<_, CampaignIndex, ValueQuery>;
 
 
+	/// Campaign that have been made.
 	#[pallet::storage]
-	#[pallet::getter(fn some_map)]
-	pub(super) type Task<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, u32, ValueQuery>;
+	#[pallet::getter(fn campaigns)]
+	pub type Campaigns<T: Config> = StorageMap<
+		_,
+		Twox64Concat,
+		CampaignIndex,
+		Campaign<T::AccountId, BalanceOf<T>>,
+		OptionQuery,
+	>;
+
+	#[pallet::genesis_config]
+	pub struct GenesisConfig;
+
+	#[cfg(feature = "std")]
+	impl Default for GenesisConfig {
+		fn default() -> Self {
+			Self
+		}
+	}
+
+	#[pallet::genesis_build]
+	impl<T:Config> GenesisBuild<T> for GenesisConfig{
+		fn build(&self){
+
+			//get campaign account
+			let account_id = <Pallet<T>>::account_id();
+			// get existential balance
+			let min = T::Currency::minimum_balance();
+
+			if T::Currency::free_balance(&account_id)< min {
+
+				// give minimum balance for campaign account
+				let _ = T::Currency::make_free_balance_be(&account_id, min);
+			}
+		} 
+	}
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		TaskCreated(u32, T::AccountId),
+		/// New campaign.
+		NewCampaign { campaign_index: CampaignIndex },
 	}
 
 	// Errors inform users that something went wrong.
 	#[pallet::error]
 	pub enum Error<T> {
+		InsufficientBalance,
+		CampaignNotExist,
 
 	}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-		pub fn create_task(origin: OriginFor<T>) -> DispatchResult {
 
-			let who = ensure_signed(origin)?;
+		///Create a campaign
+		/// Should be reserved token first
+		/// Store on chain 
+		#[pallet::weight(10_000)]
+		pub fn create_campaign(origin: OriginFor<T>, 
+			#[pallet::compact] value: BalanceOf<T> ) -> DispatchResult {
+
+			let client = ensure_signed(origin)?;
+
+			let bond = (T::DepositMinimum::get()).max(value);
+			
+			// Reserved balance for client
+			let _ = T::Currency::reserve(&client, bond).map_err(|_| Error::<T>::InsufficientBalance);
+
+			let count = Self::campaign_count();
+
+			CampaignCount::<T>::put(count+1);
+			Campaigns::<T>::insert(count, Campaign {client, value, bond});
+			Self::deposit_event(Event::NewCampaign{campaign_index: count});
 
 			Ok(())
 		}
+
+		#[pallet::weight(10_000)]
+		pub fn reject_campaign(origin: OriginFor<T>, campaign_index: CampaignIndex)-> DispatchResult {
+			
+			T::RejectOrigin::ensure_origin(origin)?;
+
+			let campaign = Campaigns::<T>::take(&campaign_index).ok_or(Error::<T>::CampaignNotExist);
+
+			Ok(())
+		}
+
+
 
 	}
 }

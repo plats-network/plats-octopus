@@ -239,6 +239,7 @@ fn testnet_genesis(
 			// Assign network admin rights.
 			key: root_key,
 		},
+		task: Default::default(),
 	}
 }
 
@@ -386,5 +387,6 @@ fn plats_testnet_genesis(
 			// Assign network admin rights.
 			key: root_key,
 		},
+		task: Default::default(),
 	}
 }
