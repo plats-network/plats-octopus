@@ -657,9 +657,17 @@ impl pallet_template::Config for Runtime {
 	type Event = Event;
 }
 
+parameter_types! {
+	pub const DepositMinimum: Balance = currency::PLT;
+	pub const TaskPalletId: PalletId = PalletId(*b"plt/task");
+	pub const MaxTasks: u32 = 10;
+}
 impl pallet_task::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
+	type DepositMinimum = DepositMinimum;
+	type MaxTasks = MaxTasks;
+	type PalletId = TaskPalletId;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.

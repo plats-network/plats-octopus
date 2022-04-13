@@ -16,7 +16,9 @@ mod benchmarking;
 
 use frame_support::pallet_prelude::*;
 use frame_system::pallet_prelude::*;
-use frame_support::traits::Currency;
+use frame_support::{traits::Currency, PalletId};
+use sp_runtime::traits::AccountIdConversion;
+
 #[frame_support::pallet]
 pub mod pallet {
 
@@ -27,6 +29,16 @@ pub mod pallet {
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 		type Currency : Currency<Self::AccountId>;
+
+		#[pallet::constant]
+		type DepositMinimum : Get<u128>;
+
+		#[pallet::constant]
+		type MaxTasks: Get<u32>;
+
+		/// The task's pallet id, used for deriving its sovereign account ID.
+		#[pallet::constant]
+		type PalletId: Get<PalletId>;
 	}
 
 	#[pallet::pallet]
@@ -35,27 +47,29 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn something)]
-	pub type Something<T> = StorageValue<_, u32>;
+	pub(super) type TaskId<T> = StorageValue<_, u32, ValueQuery>;
+
+
+	#[pallet::storage]
+	#[pallet::getter(fn some_map)]
+	pub(super) type Task<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, u32, ValueQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		SomethingStored(u32, T::AccountId),
+		TaskCreated(u32, T::AccountId),
 	}
 
 	// Errors inform users that something went wrong.
 	#[pallet::error]
 	pub enum Error<T> {
-		/// Error names should be descriptive.
-		NoneValue,
-		/// Errors should have helpful documentation associated with them.
-		StorageOverflow,
+
 	}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-		pub fn create_task(origin: OriginFor<T>, something: u32) -> DispatchResult {
+		pub fn create_task(origin: OriginFor<T>) -> DispatchResult {
 
 			let who = ensure_signed(origin)?;
 
@@ -63,4 +77,13 @@ pub mod pallet {
 		}
 
 	}
+}
+
+
+impl<T: Config> Pallet<T> {
+
+	pub fn account_id() -> T::AccountId {
+		T::PalletId::get().into_account()
+	}
+
 }
