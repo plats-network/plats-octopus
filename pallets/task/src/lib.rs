@@ -20,6 +20,7 @@ use frame_support::{traits::{Currency, ReservableCurrency}, PalletId};
 use sp_runtime::traits::AccountIdConversion;
 use scale_info::TypeInfo;
 use codec::{Encode, Decode};
+use sp_std::vec::Vec;
 
 pub type CampaignIndex = u32;
 
@@ -81,6 +82,11 @@ pub mod pallet {
 		OptionQuery,
 	>;
 
+	#[pallet::storage]
+	#[pallet::getter(fn approvals)]
+	pub type ApprovalCampaigns<T> =
+		StorageValue<_, Vec<CampaignIndex>, ValueQuery>;
+
 	#[pallet::genesis_config]
 	pub struct GenesisConfig;
 
@@ -113,6 +119,8 @@ pub mod pallet {
 	pub enum Event<T: Config> {
 		/// New campaign.
 		NewCampaign { campaign_index: CampaignIndex },
+		RejectCampaign { campaign_index: CampaignIndex, value:BalanceOf<T> },
+		ApproveCampaign { campaign_index: CampaignIndex},
 	}
 
 	// Errors inform users that something went wrong.
@@ -154,10 +162,29 @@ pub mod pallet {
 			
 			T::RejectOrigin::ensure_origin(origin)?;
 
-			let campaign = Campaigns::<T>::take(&campaign_index).ok_or(Error::<T>::CampaignNotExist);
+			let campaign = Campaigns::<T>::take(&campaign_index).ok_or(Error::<T>::CampaignNotExist)?;
+
+			let value = campaign.value;
+			let _ = T::Currency::unreserve(&campaign.client, value);
+
+			Self::deposit_event(Event::RejectCampaign{campaign_index, value });
 
 			Ok(())
 		}
+
+		#[pallet::weight(10_000)]
+		pub fn approve_campaign(
+			origin: OriginFor<T>,
+			#[pallet::compact] campaign_index: CampaignIndex,
+		) -> DispatchResult {
+			T::ApprovalOrigin::ensure_origin(origin)?;
+
+			ensure!(Campaigns::<T>::contains_key(campaign_index), Error::<T>::CampaignNotExist);
+			ApprovalCampaigns::<T>::append(campaign_index);
+			Self::deposit_event(Event::ApproveCampaign{campaign_index});
+			Ok(())
+		}
+
 
 
 
