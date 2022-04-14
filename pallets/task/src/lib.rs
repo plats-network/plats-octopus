@@ -17,7 +17,7 @@ mod benchmarking;
 use frame_support::pallet_prelude::*;
 use frame_system::pallet_prelude::*;
 use frame_support::{traits::{Currency, ReservableCurrency}, PalletId};
-use sp_runtime::traits::AccountIdConversion;
+use sp_runtime::traits::{AccountIdConversion, Saturating, Zero};
 use scale_info::TypeInfo;
 use codec::{Encode, Decode};
 use sp_std::vec::Vec;
@@ -26,6 +26,10 @@ pub type CampaignIndex = u32;
 
 pub type BalanceOf<T> =
 <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+
+pub type PositiveImbalanceOf<T> = <<T as Config>::Currency as Currency<
+	<T as frame_system::Config>::AccountId,
+>>::PositiveImbalance;
 
 
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
@@ -56,6 +60,8 @@ pub mod pallet {
 		type RejectOrigin : EnsureOrigin<Self::Origin>;
 
 		type ApprovalOrigin: EnsureOrigin<Self::Origin>;
+
+		type CampaignDuration : Get<Self::BlockNumber>;
 
 		/// The task's pallet id, used for deriving its sovereign account ID.
 		#[pallet::constant]
@@ -121,6 +127,7 @@ pub mod pallet {
 		NewCampaign { campaign_index: CampaignIndex },
 		RejectCampaign { campaign_index: CampaignIndex, value:BalanceOf<T> },
 		ApproveCampaign { campaign_index: CampaignIndex},
+		
 	}
 
 	// Errors inform users that something went wrong.
@@ -129,6 +136,19 @@ pub mod pallet {
 		InsufficientBalance,
 		CampaignNotExist,
 
+	}
+	#[pallet::hooks]
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+
+		fn on_initialize(n: T::BlockNumber) -> Weight {
+
+
+			if (n % T::CampaignDuration::get()).is_zero() {
+				Self::reward()
+			} else {
+				0
+			}
+		}
 	}
 
 	#[pallet::call]
@@ -184,10 +204,6 @@ pub mod pallet {
 			Self::deposit_event(Event::ApproveCampaign{campaign_index});
 			Ok(())
 		}
-
-
-
-
 	}
 }
 
@@ -196,6 +212,23 @@ impl<T: Config> Pallet<T> {
 
 	pub fn account_id() -> T::AccountId {
 		T::PalletId::get().into_account()
+	}
+
+	pub fn reward() -> Weight {
+		let mut remain_balance = Self::remain_balance();
+
+		let account_id = Self::account_id();
+
+		let total_weight :Weight = Zero::zero();
+
+		total_weight
+	}
+
+	pub fn remain_balance() -> BalanceOf<T> {
+
+		let account = Self::account_id();
+
+		T::Currency::free_balance(&account).saturating_sub(T::Currency::minimum_balance())
 	}
 
 }

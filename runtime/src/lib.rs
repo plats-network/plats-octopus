@@ -660,6 +660,7 @@ impl pallet_template::Config for Runtime {
 parameter_types! {
 	pub const DepositMinimum: Balance = currency::PLT;
 	pub const TaskPalletId: PalletId = PalletId(*b"plt/task");
+	pub const CampaignDuration: BlockNumber = MINUTES;
 	pub const MaxTasks: u32 = 10;
 }
 impl pallet_task::Config for Runtime {
@@ -668,6 +669,7 @@ impl pallet_task::Config for Runtime {
 	type DepositMinimum = DepositMinimum;
 	type RejectOrigin = EnsureRoot<AccountId>;
 	type ApprovalOrigin = EnsureRoot<AccountId>;
+	type CampaignDuration = CampaignDuration;
 	type PalletId = TaskPalletId;
 }
 
