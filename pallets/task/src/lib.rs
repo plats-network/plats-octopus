@@ -2,7 +2,6 @@
 
 pub use pallet::*;
 
-
 /*
 #[cfg(test)]
 mod mock;
@@ -14,23 +13,28 @@ mod tests;
 mod benchmarking;
 */
 
-use frame_support::pallet_prelude::*;
+use codec::{Decode, Encode};
+use frame_support::{
+	pallet_prelude::*,
+	traits::{Currency, ReservableCurrency},
+	PalletId,
+};
 use frame_system::pallet_prelude::*;
-use frame_support::{traits::{Currency, ReservableCurrency}, PalletId};
-use sp_runtime::traits::{AccountIdConversion, Saturating, Zero};
 use scale_info::TypeInfo;
-use codec::{Encode, Decode};
+use sp_runtime::{
+	traits::{AccountIdConversion, Saturating, CheckedMul, SaturatedConversion},
+	Permill,ArithmeticError,
+};
 use sp_std::vec::Vec;
 
 pub type CampaignIndex = u32;
 
 pub type BalanceOf<T> =
-<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+	<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
 pub type PositiveImbalanceOf<T> = <<T as Config>::Currency as Currency<
 	<T as frame_system::Config>::AccountId,
 >>::PositiveImbalance;
-
 
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Encode, Decode, Clone, PartialEq, Eq, MaxEncodedLen, RuntimeDebug, TypeInfo)]
@@ -52,16 +56,23 @@ pub mod pallet {
 	pub trait Config: frame_system::Config {
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
-		type Currency : Currency<Self::AccountId> + ReservableCurrency<Self::AccountId>;
+		type Currency: Currency<Self::AccountId> + ReservableCurrency<Self::AccountId>;
 
+		// minimum balance that campaign should be deposit
 		#[pallet::constant]
-		type DepositMinimum : Get<BalanceOf<Self>>;
+		type CampaignDepositMinimum: Get<BalanceOf<Self>>;
 
-		type RejectOrigin : EnsureOrigin<Self::Origin>;
+		// Percentage of campaign deposit
+		#[pallet::constant]
+		type CampaignDeposit: Get<Permill>;
+
+		type RejectOrigin: EnsureOrigin<Self::Origin>;
 
 		type ApprovalOrigin: EnsureOrigin<Self::Origin>;
 
-		type CampaignDuration : Get<Self::BlockNumber>;
+		type RewardOrigin: EnsureOrigin<Self::Origin>;
+
+		type CampaignDuration: Get<Self::BlockNumber>;
 
 		/// The task's pallet id, used for deriving its sovereign account ID.
 		#[pallet::constant]
@@ -76,7 +87,6 @@ pub mod pallet {
 	#[pallet::getter(fn campaign_count)]
 	pub(crate) type CampaignCount<T> = StorageValue<_, CampaignIndex, ValueQuery>;
 
-
 	/// Campaign that have been made.
 	#[pallet::storage]
 	#[pallet::getter(fn campaigns)]
@@ -90,8 +100,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn approvals)]
-	pub type ApprovalCampaigns<T> =
-		StorageValue<_, Vec<CampaignIndex>, ValueQuery>;
+	pub type ApprovalCampaigns<T> = StorageValue<_, Vec<CampaignIndex>, ValueQuery>;
 
 	#[pallet::genesis_config]
 	pub struct GenesisConfig;
@@ -104,30 +113,34 @@ pub mod pallet {
 	}
 
 	#[pallet::genesis_build]
-	impl<T:Config> GenesisBuild<T> for GenesisConfig{
-		fn build(&self){
-
+	impl<T: Config> GenesisBuild<T> for GenesisConfig {
+		fn build(&self) {
 			//get campaign account
 			let account_id = <Pallet<T>>::account_id();
 			// get existential balance
 			let min = T::Currency::minimum_balance();
 
-			if T::Currency::free_balance(&account_id)< min {
-
+			if T::Currency::free_balance(&account_id) < min {
 				// give minimum balance for campaign account
 				let _ = T::Currency::make_free_balance_be(&account_id, min);
 			}
-		} 
+		}
 	}
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// New campaign.
-		NewCampaign { campaign_index: CampaignIndex },
-		RejectCampaign { campaign_index: CampaignIndex, value:BalanceOf<T> },
-		ApproveCampaign { campaign_index: CampaignIndex},
-		
+		NewCampaign {
+			campaign_index: CampaignIndex,
+		},
+		RejectCampaign {
+			campaign_index: CampaignIndex,
+			value: BalanceOf<T>,
+		},
+		ApproveCampaign {
+			campaign_index: CampaignIndex,
+		},
 	}
 
 	// Errors inform users that something went wrong.
@@ -135,59 +148,48 @@ pub mod pallet {
 	pub enum Error<T> {
 		InsufficientBalance,
 		CampaignNotExist,
-
-	}
-	#[pallet::hooks]
-	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-
-		fn on_initialize(n: T::BlockNumber) -> Weight {
-
-
-			if (n % T::CampaignDuration::get()).is_zero() {
-				Self::reward()
-			} else {
-				0
-			}
-		}
+		NotApprovalCampaign,
+		NotEnoughBalanceForUsers
 	}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-
 		///Create a campaign
 		/// Should be reserved token first
-		/// Store on chain 
+		/// Store on chain
 		#[pallet::weight(10_000)]
-		pub fn create_campaign(origin: OriginFor<T>, 
-			#[pallet::compact] value: BalanceOf<T> ) -> DispatchResult {
-
+		pub fn create_campaign(origin: OriginFor<T>, value: BalanceOf<T>) -> DispatchResult {
 			let client = ensure_signed(origin)?;
 
-			let bond = (T::DepositMinimum::get()).max(value);
-			
+			let bond = (T::CampaignDepositMinimum::get()).max(T::CampaignDeposit::get() * value);
+
 			// Reserved balance for client
-			let _ = T::Currency::reserve(&client, bond).map_err(|_| Error::<T>::InsufficientBalance);
+			let _ =
+				T::Currency::reserve(&client, bond).map_err(|_| Error::<T>::InsufficientBalance);
 
 			let count = Self::campaign_count();
 
-			CampaignCount::<T>::put(count+1);
-			Campaigns::<T>::insert(count, Campaign {client, value, bond});
-			Self::deposit_event(Event::NewCampaign{campaign_index: count});
+			CampaignCount::<T>::put(count + 1);
+			Campaigns::<T>::insert(count, Campaign { client, value, bond });
+			Self::deposit_event(Event::NewCampaign { campaign_index: count });
 
 			Ok(())
 		}
 
 		#[pallet::weight(10_000)]
-		pub fn reject_campaign(origin: OriginFor<T>, campaign_index: CampaignIndex)-> DispatchResult {
-			
+		pub fn reject_campaign(
+			origin: OriginFor<T>,
+			campaign_index: CampaignIndex,
+		) -> DispatchResult {
 			T::RejectOrigin::ensure_origin(origin)?;
 
-			let campaign = Campaigns::<T>::take(&campaign_index).ok_or(Error::<T>::CampaignNotExist)?;
+			let campaign =
+				Campaigns::<T>::take(&campaign_index).ok_or(Error::<T>::CampaignNotExist)?;
 
 			let value = campaign.value;
 			let _ = T::Currency::unreserve(&campaign.client, value);
 
-			Self::deposit_event(Event::RejectCampaign{campaign_index, value });
+			Self::deposit_event(Event::RejectCampaign { campaign_index, value });
 
 			Ok(())
 		}
@@ -195,40 +197,48 @@ pub mod pallet {
 		#[pallet::weight(10_000)]
 		pub fn approve_campaign(
 			origin: OriginFor<T>,
-			#[pallet::compact] campaign_index: CampaignIndex,
+			campaign_index: CampaignIndex,
 		) -> DispatchResult {
 			T::ApprovalOrigin::ensure_origin(origin)?;
 
 			ensure!(Campaigns::<T>::contains_key(campaign_index), Error::<T>::CampaignNotExist);
 			ApprovalCampaigns::<T>::append(campaign_index);
-			Self::deposit_event(Event::ApproveCampaign{campaign_index});
+			Self::deposit_event(Event::ApproveCampaign { campaign_index });
+			Ok(())
+		}
+		#[pallet::weight(10_000)]
+		pub fn reward(
+			origin: OriginFor<T>,
+			campaign_index: CampaignIndex,
+			users: Vec<T::AccountId>,
+			amount: BalanceOf<T>,
+		) -> DispatchResult {
+			T::RewardOrigin::ensure_origin(origin)?;
+
+			//Ensure this campaign is registered
+			ensure!(Campaigns::<T>::contains_key(campaign_index), Error::<T>::CampaignNotExist);
+
+			let approval = ApprovalCampaigns::<T>::get();
+			// Ensure this campaign is approved
+			ensure!(approval.contains(&campaign_index), Error::<T>::NotApprovalCampaign);
+
+			let campaign = Campaigns::<T>::get(&campaign_index).unwrap();
+			let total_amount = amount.checked_mul(&users.len().saturated_into()).ok_or(ArithmeticError::Overflow)?;
+			ensure!(total_amount < campaign.value, Error::<T>::NotEnoughBalanceForUsers);
+
 			Ok(())
 		}
 	}
 }
 
-
 impl<T: Config> Pallet<T> {
-
 	pub fn account_id() -> T::AccountId {
 		T::PalletId::get().into_account()
 	}
 
-	pub fn reward() -> Weight {
-		let mut remain_balance = Self::remain_balance();
-
-		let account_id = Self::account_id();
-
-		let total_weight :Weight = Zero::zero();
-
-		total_weight
-	}
-
 	pub fn remain_balance() -> BalanceOf<T> {
-
 		let account = Self::account_id();
 
 		T::Currency::free_balance(&account).saturating_sub(T::Currency::minimum_balance())
 	}
-
 }

@@ -1,5 +1,5 @@
 use appchain_plats_runtime::{
-	currency::{PLT,UNITS},
+	currency::{PLT, UNITS},
 	opaque::{Block, SessionKeys},
 	AccountId, BabeConfig, Balance, BalancesConfig, GenesisConfig, GrandpaConfig, ImOnlineConfig,
 	OctopusAppchainConfig, OctopusLposConfig, SessionConfig, Signature, SudoConfig, SystemConfig,
