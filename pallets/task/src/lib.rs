@@ -16,13 +16,13 @@ mod benchmarking;
 use codec::{Decode, Encode};
 use frame_support::{
 	pallet_prelude::*,
-	traits::{Currency, ReservableCurrency},
+	traits::{Currency, ReservableCurrency, Imbalance, OnUnbalanced},
 	PalletId,
 };
 use frame_system::pallet_prelude::*;
 use scale_info::TypeInfo;
 use sp_runtime::{
-	traits::{AccountIdConversion, Saturating, CheckedMul, SaturatedConversion},
+	traits::{AccountIdConversion, Saturating, CheckedMul, SaturatedConversion, Zero},
 	Permill,ArithmeticError,
 };
 use sp_std::vec::Vec;
@@ -35,6 +35,12 @@ pub type BalanceOf<T> =
 pub type PositiveImbalanceOf<T> = <<T as Config>::Currency as Currency<
 	<T as frame_system::Config>::AccountId,
 >>::PositiveImbalance;
+
+
+pub type NegativeImbalanceOf<T> = <<T as Config>::Currency as Currency<
+	<T as frame_system::Config>::AccountId,
+>>::NegativeImbalance;
+
 
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Encode, Decode, Clone, PartialEq, Eq, MaxEncodedLen, RuntimeDebug, TypeInfo)]
@@ -73,6 +79,9 @@ pub mod pallet {
 		type RewardOrigin: EnsureOrigin<Self::Origin>;
 
 		type CampaignDuration: Get<Self::BlockNumber>;
+
+		/// Handler for the unbalanced decrease when slashing for a approval campaign.
+		type SlashDeposit: OnUnbalanced<NegativeImbalanceOf<Self>>;
 
 		/// The task's pallet id, used for deriving its sovereign account ID.
 		#[pallet::constant]
@@ -141,6 +150,13 @@ pub mod pallet {
 		ApproveCampaign {
 			campaign_index: CampaignIndex,
 		},
+		RemainingBudget{ remaining_budget: BalanceOf<T>,},
+
+		Deposit {
+			amount: BalanceOf<T>,
+		},
+		SlashDepositClient { campaign_index : CampaignIndex, slashed: BalanceOf<T>},
+
 	}
 
 	// Errors inform users that something went wrong.
@@ -203,6 +219,9 @@ pub mod pallet {
 
 			ensure!(Campaigns::<T>::contains_key(campaign_index), Error::<T>::CampaignNotExist);
 			ApprovalCampaigns::<T>::append(campaign_index);
+			
+
+			Self::deposit_campaign_account(campaign_index);
 			Self::deposit_event(Event::ApproveCampaign { campaign_index });
 			Ok(())
 		}
@@ -226,6 +245,8 @@ pub mod pallet {
 			let total_amount = amount.checked_mul(&users.len().saturated_into()).ok_or(ArithmeticError::Overflow)?;
 			ensure!(total_amount < campaign.value, Error::<T>::NotEnoughBalanceForUsers);
 
+			let budget_remaining = Self::remain_balance();
+			
 			Ok(())
 		}
 	}
@@ -236,9 +257,34 @@ impl<T: Config> Pallet<T> {
 		T::PalletId::get().into_account()
 	}
 
+	pub fn deposit_campaign_account(campaign_index: CampaignIndex){
+
+		let campaign = Campaigns::<T>::get(campaign_index).unwrap();
+		let value = campaign.value;
+		let imbalance = T::Currency::slash(&campaign.client, value).0;
+		T::SlashDeposit::on_unbalanced(imbalance);
+		
+		Self::deposit_event(Event::SlashDepositClient { campaign_index, slashed: value });
+
+
+	}
+
+
 	pub fn remain_balance() -> BalanceOf<T> {
 		let account = Self::account_id();
 
 		T::Currency::free_balance(&account).saturating_sub(T::Currency::minimum_balance())
+	}
+}
+
+
+impl<T: Config> OnUnbalanced<NegativeImbalanceOf<T>> for Pallet<T> {
+	fn on_nonzero_unbalanced(amount: NegativeImbalanceOf<T>) {
+		let amount = amount.peek();
+
+		// Must resolve into existing but better to be safe.
+		let _ = T::Currency::resolve_creating(&Self::account_id(), amount);
+
+		Self::deposit_event(Event::Deposit { amount });
 	}
 }
