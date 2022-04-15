@@ -673,6 +673,7 @@ impl pallet_task::Config for Runtime {
 	type ApprovalOrigin = EnsureRoot<AccountId>;
 	type RewardOrigin = EnsureRoot<AccountId>;
 	type CampaignDuration = CampaignDuration;
+	type SlashDeposit = Task;
 	type PalletId = TaskPalletId;
 }
 

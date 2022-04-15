@@ -292,11 +292,11 @@ impl<T: Config> Pallet<T> {
 
 
 impl<T: Config> OnUnbalanced<NegativeImbalanceOf<T>> for Pallet<T> {
-	fn on_nonzero_unbalanced(amount: NegativeImbalanceOf<T>) {
-		let amount = amount.peek();
+	fn on_nonzero_unbalanced(imbalance_amount: NegativeImbalanceOf<T>) {
+		let amount = imbalance_amount.peek();
 
 		// Must resolve into existing but better to be safe.
-		let _ = T::Currency::resolve_creating(&Self::account_id(), amount);
+		let _ = T::Currency::resolve_creating(&Self::account_id(), imbalance_amount);
 
 		Self::deposit_event(Event::Deposit { amount });
 	}
