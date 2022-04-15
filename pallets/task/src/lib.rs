@@ -22,7 +22,7 @@ use frame_support::{
 use frame_system::pallet_prelude::*;
 use scale_info::TypeInfo;
 use sp_runtime::{
-	traits::{AccountIdConversion, Saturating, CheckedMul, SaturatedConversion, Zero},
+	traits::{AccountIdConversion, Saturating, CheckedMul, SaturatedConversion},
 	Permill,ArithmeticError,
 };
 use sp_std::vec::Vec;
@@ -157,6 +157,13 @@ pub mod pallet {
 		},
 		SlashDepositClient { campaign_index : CampaignIndex, slashed: BalanceOf<T>},
 
+		Rewarded {
+			campaign_index: CampaignIndex,
+			award: BalanceOf<T>,
+			account : Vec<T::AccountId>,
+
+		}
+
 	}
 
 	// Errors inform users that something went wrong.
@@ -254,11 +261,30 @@ pub mod pallet {
 			let total_amount = amount.checked_mul(&users.len().saturated_into()).ok_or(ArithmeticError::Overflow)?;
 			ensure!(total_amount < campaign.value, Error::<T>::NotEnoughBalanceForUsers);
 
-			let budget_remaining = Self::remain_balance();
+			let mut budget_remain = Self::remain_balance();
 
-			let imbalance = <PositiveImbalanceOf<T>>::zero();
+			let mut imbalance = <PositiveImbalanceOf<T>>::zero();
 
+			for index in approval.into_iter() {
+				if let Some(p) = Self::campaigns(index) {
+					if p.value <= budget_remain {
+						budget_remain -= p.value;
+						Campaigns::<T>::remove(index);
 
+						let unreserve = T::Currency::unreserve(&p.client, p.bond);
+						log::info!("Unreserved Balance:{:?}", unreserve);
+						for user in users.iter(){
+							imbalance.subsume(T::Currency::deposit_creating(&user, amount));
+						}
+
+						Self::deposit_event(Event::Rewarded {
+							campaign_index: index,
+							award: amount,
+							account: users.clone(),
+						});
+					}
+				}
+			};
 
 			Ok(())
 		}
