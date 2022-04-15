@@ -10,6 +10,7 @@ std = [
     'sp-runtime/std',
     'sp-std/std',
     'serde/std',
+    'log/std',
 ]
 try-runtime = ['frame-support/try-runtime']
 
@@ -40,3 +41,4 @@ frame-support = { git = 'https://github.com/paritytech/substrate.git', branch = 
 frame-system = { git = 'https://github.com/paritytech/substrate.git', branch = 'polkadot-v0.9.13', default-features = false }
 sp-runtime = { git = 'https://github.com/paritytech/substrate.git', branch = 'polkadot-v0.9.13', default-features = false }
 sp-std = { git = 'https://github.com/paritytech/substrate.git', branch = 'polkadot-v0.9.13', default-features = false }
+log = { version = "0.4.14", default-features = false }

@@ -192,6 +192,10 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Reject creating campaign from client
+		/// Only root can execute this extrinsic call
+		/// In this case will unreseved bond amount not slash bond amount
+
 		#[pallet::weight(10_000)]
 		pub fn reject_campaign(
 			origin: OriginFor<T>,
@@ -209,7 +213,9 @@ pub mod pallet {
 
 			Ok(())
 		}
-
+		/// Approve campaign
+		/// Only root can execute this extrinsic call
+		/// Will be deposit value amount into campaign account
 		#[pallet::weight(10_000)]
 		pub fn approve_campaign(
 			origin: OriginFor<T>,
@@ -225,6 +231,9 @@ pub mod pallet {
 			Self::deposit_event(Event::ApproveCampaign { campaign_index });
 			Ok(())
 		}
+
+		/// Reward for all users with specific campaigns
+		/// Check deposit amount is enough balance to pay for all users
 		#[pallet::weight(10_000)]
 		pub fn reward(
 			origin: OriginFor<T>,
@@ -246,7 +255,11 @@ pub mod pallet {
 			ensure!(total_amount < campaign.value, Error::<T>::NotEnoughBalanceForUsers);
 
 			let budget_remaining = Self::remain_balance();
-			
+
+			let imbalance = <PositiveImbalanceOf<T>>::zero();
+
+
+
 			Ok(())
 		}
 	}
