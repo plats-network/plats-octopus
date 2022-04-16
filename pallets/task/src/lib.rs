@@ -16,14 +16,17 @@ mod benchmarking;
 use codec::{Decode, Encode};
 use frame_support::{
 	pallet_prelude::*,
-	traits::{Currency, ReservableCurrency, Imbalance, OnUnbalanced, WithdrawReasons, ExistenceRequirement::KeepAlive},
+	traits::{
+		Currency, ExistenceRequirement::KeepAlive, Imbalance, OnUnbalanced, ReservableCurrency,
+		WithdrawReasons,
+	},
 	PalletId,
 };
 use frame_system::pallet_prelude::*;
 use scale_info::TypeInfo;
 use sp_runtime::{
-	traits::{AccountIdConversion, Saturating, CheckedMul, SaturatedConversion},
-	Permill,ArithmeticError,
+	traits::{AccountIdConversion, CheckedMul, SaturatedConversion, Saturating},
+	ArithmeticError, Permill,
 };
 use sp_std::vec::Vec;
 
@@ -36,11 +39,9 @@ pub type PositiveImbalanceOf<T> = <<T as Config>::Currency as Currency<
 	<T as frame_system::Config>::AccountId,
 >>::PositiveImbalance;
 
-
 pub type NegativeImbalanceOf<T> = <<T as Config>::Currency as Currency<
 	<T as frame_system::Config>::AccountId,
 >>::NegativeImbalance;
-
 
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Encode, Decode, Clone, PartialEq, Eq, MaxEncodedLen, RuntimeDebug, TypeInfo)]
@@ -150,20 +151,23 @@ pub mod pallet {
 		ApproveCampaign {
 			campaign_index: CampaignIndex,
 		},
-		RemainingBudget{ remaining_budget: BalanceOf<T>,},
+		RemainingBudget {
+			remaining_budget: BalanceOf<T>,
+		},
 
 		ClientDeposit {
 			amount: BalanceOf<T>,
 		},
-		SlashDepositClient { campaign_index : CampaignIndex, slashed: BalanceOf<T>},
+		SlashDepositClient {
+			campaign_index: CampaignIndex,
+			slashed: BalanceOf<T>,
+		},
 
 		Rewarded {
 			campaign_index: CampaignIndex,
 			award: BalanceOf<T>,
-			account : Vec<T::AccountId>,
-
-		}
-
+			account: Vec<T::AccountId>,
+		},
 	}
 
 	// Errors inform users that something went wrong.
@@ -172,7 +176,7 @@ pub mod pallet {
 		InsufficientBalance,
 		CampaignNotExist,
 		NotApprovalCampaign,
-		NotEnoughBalanceForUsers
+		NotEnoughBalanceForUsers,
 	}
 
 	#[pallet::call]
@@ -232,7 +236,6 @@ pub mod pallet {
 
 			ensure!(Campaigns::<T>::contains_key(campaign_index), Error::<T>::CampaignNotExist);
 			ApprovalCampaigns::<T>::append(campaign_index);
-			
 
 			Self::deposit_campaign_account(campaign_index);
 			Self::deposit_event(Event::ApproveCampaign { campaign_index });
@@ -258,12 +261,13 @@ pub mod pallet {
 			ensure!(approval.contains(&campaign_index), Error::<T>::NotApprovalCampaign);
 
 			let campaign = Campaigns::<T>::get(&campaign_index).unwrap();
-			let total_amount = amount.checked_mul(&users.len().saturated_into()).ok_or(ArithmeticError::Overflow)?;
+			let total_amount = amount
+				.checked_mul(&users.len().saturated_into())
+				.ok_or(ArithmeticError::Overflow)?;
 			ensure!(total_amount < campaign.value, Error::<T>::NotEnoughBalanceForUsers);
 
 			let budget_remain = Self::remain_balance();
 			let account_id = Self::account_id();
-
 
 			let mut imbalance = <PositiveImbalanceOf<T>>::zero();
 
@@ -271,25 +275,24 @@ pub mod pallet {
 				if p.value <= budget_remain {
 					Campaigns::<T>::remove(campaign_index);
 
-					let approval_remain: Vec<u32> = approval.into_iter().filter(|v| {*v != campaign_index}).collect();
+					let approval_remain: Vec<u32> =
+						approval.into_iter().filter(|v| *v != campaign_index).collect();
 					ApprovalCampaigns::<T>::put(approval_remain);
 					let _ = T::Currency::unreserve(&p.client, p.bond);
-					for user in users.iter(){
+					for user in users.iter() {
 						imbalance.subsume(T::Currency::deposit_creating(&user, amount));
-
 					}
 
-
 					Self::deposit_event(Event::Rewarded {
-						campaign_index: campaign_index,
+						campaign_index,
 						award: amount,
 						account: users.clone(),
 					});
 				}
 			}
-				
-			let _ = T::Currency::settle(&account_id, imbalance, WithdrawReasons::TRANSFER, KeepAlive);
 
+			let _ =
+				T::Currency::settle(&account_id, imbalance, WithdrawReasons::TRANSFER, KeepAlive);
 
 			Ok(())
 		}
@@ -301,18 +304,14 @@ impl<T: Config> Pallet<T> {
 		T::PalletId::get().into_account()
 	}
 
-	pub fn deposit_campaign_account(campaign_index: CampaignIndex){
-
+	pub fn deposit_campaign_account(campaign_index: CampaignIndex) {
 		let campaign = Campaigns::<T>::get(campaign_index).unwrap();
 		let value = campaign.value;
 		let imbalance = T::Currency::slash(&campaign.client, value).0;
 		T::SlashDeposit::on_unbalanced(imbalance);
-		
+
 		Self::deposit_event(Event::SlashDepositClient { campaign_index, slashed: value });
-
-
 	}
-
 
 	pub fn remain_balance() -> BalanceOf<T> {
 		let account = Self::account_id();
@@ -320,7 +319,6 @@ impl<T: Config> Pallet<T> {
 		T::Currency::free_balance(&account).saturating_sub(T::Currency::minimum_balance())
 	}
 }
-
 
 impl<T: Config> OnUnbalanced<NegativeImbalanceOf<T>> for Pallet<T> {
 	fn on_nonzero_unbalanced(imbalance_amount: NegativeImbalanceOf<T>) {
