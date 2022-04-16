@@ -152,7 +152,7 @@ pub mod pallet {
 		},
 		RemainingBudget{ remaining_budget: BalanceOf<T>,},
 
-		Deposit {
+		ClientDeposit {
 			amount: BalanceOf<T>,
 		},
 		SlashDepositClient { campaign_index : CampaignIndex, slashed: BalanceOf<T>},
@@ -261,33 +261,33 @@ pub mod pallet {
 			let total_amount = amount.checked_mul(&users.len().saturated_into()).ok_or(ArithmeticError::Overflow)?;
 			ensure!(total_amount < campaign.value, Error::<T>::NotEnoughBalanceForUsers);
 
-			let mut budget_remain = Self::remain_balance();
+			let budget_remain = Self::remain_balance();
 			let account_id = Self::account_id();
 
 
 			let mut imbalance = <PositiveImbalanceOf<T>>::zero();
 
-			for index in approval.into_iter() {
-				if let Some(p) = Self::campaigns(index) {
-					if p.value <= budget_remain {
-						budget_remain -= p.value;
-						Campaigns::<T>::remove(index);
+			if let Some(p) = Self::campaigns(campaign_index) {
+				if p.value <= budget_remain {
+					Campaigns::<T>::remove(campaign_index);
 
-						let _ = T::Currency::unreserve(&p.client, p.bond);
-						for user in users.iter(){
-							imbalance.subsume(T::Currency::deposit_creating(&user, amount));
+					let approval_remain: Vec<u32> = approval.into_iter().filter(|v| {*v != campaign_index}).collect();
+					ApprovalCampaigns::<T>::put(approval_remain);
+					let _ = T::Currency::unreserve(&p.client, p.bond);
+					for user in users.iter(){
+						imbalance.subsume(T::Currency::deposit_creating(&user, amount));
 
-						}
-
-						Self::deposit_event(Event::Rewarded {
-							campaign_index: index,
-							award: amount,
-							account: users.clone(),
-						});
 					}
+
+
+					Self::deposit_event(Event::Rewarded {
+						campaign_index: campaign_index,
+						award: amount,
+						account: users.clone(),
+					});
 				}
-				
 			}
+				
 			let _ = T::Currency::settle(&account_id, imbalance, WithdrawReasons::TRANSFER, KeepAlive);
 
 
@@ -329,6 +329,6 @@ impl<T: Config> OnUnbalanced<NegativeImbalanceOf<T>> for Pallet<T> {
 		// Must resolve into existing but better to be safe.
 		let _ = T::Currency::resolve_creating(&Self::account_id(), imbalance_amount);
 
-		Self::deposit_event(Event::Deposit { amount });
+		Self::deposit_event(Event::ClientDeposit { amount });
 	}
 }
