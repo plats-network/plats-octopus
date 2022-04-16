@@ -16,7 +16,7 @@ mod benchmarking;
 use codec::{Decode, Encode};
 use frame_support::{
 	pallet_prelude::*,
-	traits::{Currency, ReservableCurrency, Imbalance, OnUnbalanced},
+	traits::{Currency, ReservableCurrency, Imbalance, OnUnbalanced, WithdrawReasons, ExistenceRequirement::KeepAlive},
 	PalletId,
 };
 use frame_system::pallet_prelude::*;
@@ -185,7 +185,6 @@ pub mod pallet {
 			let client = ensure_signed(origin)?;
 
 			let bond = (T::CampaignDepositMinimum::get()).max(T::CampaignDeposit::get() * value);
-
 			// Reserved balance for client
 			let _ =
 				T::Currency::reserve(&client, bond).map_err(|_| Error::<T>::InsufficientBalance);
@@ -229,6 +228,7 @@ pub mod pallet {
 			campaign_index: CampaignIndex,
 		) -> DispatchResult {
 			T::ApprovalOrigin::ensure_origin(origin)?;
+			//ensure_root(origin)?;
 
 			ensure!(Campaigns::<T>::contains_key(campaign_index), Error::<T>::CampaignNotExist);
 			ApprovalCampaigns::<T>::append(campaign_index);
@@ -262,6 +262,8 @@ pub mod pallet {
 			ensure!(total_amount < campaign.value, Error::<T>::NotEnoughBalanceForUsers);
 
 			let mut budget_remain = Self::remain_balance();
+			let account_id = Self::account_id();
+
 
 			let mut imbalance = <PositiveImbalanceOf<T>>::zero();
 
@@ -271,10 +273,10 @@ pub mod pallet {
 						budget_remain -= p.value;
 						Campaigns::<T>::remove(index);
 
-						let unreserve = T::Currency::unreserve(&p.client, p.bond);
-						log::info!("Unreserved Balance:{:?}", unreserve);
+						let _ = T::Currency::unreserve(&p.client, p.bond);
 						for user in users.iter(){
 							imbalance.subsume(T::Currency::deposit_creating(&user, amount));
+
 						}
 
 						Self::deposit_event(Event::Rewarded {
@@ -284,7 +286,10 @@ pub mod pallet {
 						});
 					}
 				}
-			};
+				
+			}
+			let _ = T::Currency::settle(&account_id, imbalance, WithdrawReasons::TRANSFER, KeepAlive);
+
 
 			Ok(())
 		}
