@@ -95,7 +95,16 @@ impl pallet_task::Config for Test {
 
 }
 
+pub const ALICE: u64 = 1;
+pub const BOB: u64 = 2;
+
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	system::GenesisConfig::default().build_storage::<Test>().unwrap().into()
+	let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+
+	pallet_balances::GenesisConfig::<Test> { balances: vec![(ALICE, 100000), (BOB, 100000)] }
+		.assimilate_storage(&mut t)
+		.unwrap();
+	t.into()
+
 }
