@@ -236,7 +236,7 @@ pub mod pallet {
 
 			ensure!(Campaigns::<T>::contains_key(campaign_index), Error::<T>::CampaignNotExist);
 			ApprovalCampaigns::<T>::append(campaign_index);
-
+			//Client deposit into campaign account
 			Self::deposit_campaign_account(campaign_index);
 			Self::deposit_event(Event::ApproveCampaign { campaign_index });
 			Ok(())
@@ -278,6 +278,7 @@ pub mod pallet {
 					let approval_remain: Vec<u32> =
 						approval.into_iter().filter(|v| *v != campaign_index).collect();
 					ApprovalCampaigns::<T>::put(approval_remain);
+
 					let _ = T::Currency::unreserve(&p.client, p.bond);
 					for user in users.iter() {
 						imbalance.subsume(T::Currency::deposit_creating(&user, amount));
@@ -300,6 +301,7 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
+	///Get campaign account
 	pub fn account_id() -> T::AccountId {
 		T::PalletId::get().into_account()
 	}
@@ -307,12 +309,17 @@ impl<T: Config> Pallet<T> {
 	pub fn deposit_campaign_account(campaign_index: CampaignIndex) {
 		let campaign = Campaigns::<T>::get(campaign_index).unwrap();
 		let value = campaign.value;
+
+		//Slash campaign client
 		let imbalance = T::Currency::slash(&campaign.client, value).0;
+
+		//Deposit into campaign account
 		T::SlashDeposit::on_unbalanced(imbalance);
 
 		Self::deposit_event(Event::SlashDepositClient { campaign_index, slashed: value });
 	}
 
+	/// Remaining balance of campaign account
 	pub fn remain_balance() -> BalanceOf<T> {
 		let account = Self::account_id();
 
@@ -320,6 +327,7 @@ impl<T: Config> Pallet<T> {
 	}
 }
 
+/// Implement trait onunbalanced for pallet-task
 impl<T: Config> OnUnbalanced<NegativeImbalanceOf<T>> for Pallet<T> {
 	fn on_nonzero_unbalanced(imbalance_amount: NegativeImbalanceOf<T>) {
 		let amount = imbalance_amount.peek();
