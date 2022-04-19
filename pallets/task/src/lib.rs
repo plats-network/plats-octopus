@@ -185,7 +185,10 @@ pub mod pallet {
 		/// Should be reserved token first
 		/// Store on chain
 		#[pallet::weight(10_000)]
-		pub fn create_campaign(origin: OriginFor<T>, #[pallet::compact] value: BalanceOf<T>) -> DispatchResult {
+		pub fn create_campaign(
+			origin: OriginFor<T>,
+			#[pallet::compact] value: BalanceOf<T>,
+		) -> DispatchResult {
 			let client = ensure_signed(origin)?;
 
 			let bond = (T::CampaignDepositMinimum::get()).max(T::CampaignDeposit::get() * value);

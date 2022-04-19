@@ -258,7 +258,7 @@ pub fn staging_testnet_config() -> Result<ChainSpec, String> {
 				wasm_binary,
 				// Sudo account
 				// 5HVgMkXJGoDGQdnTyah4shbhuaiNCmAUdqCyTdYAnr9T9Y1Q
-				hex!["beeca6037f5762c78e372d4c6e9ad167b019dac7f16e4cff01d5dab1f242ad2e"].into(),
+				hex!["16c1e8c292b0ca968ee84d3f33de819dd3d1466ee4a5a025c4c714582e29fa26"].into(),
 				// Initial PoA authorities
 				vec![
 					(
@@ -303,11 +303,19 @@ pub fn staging_testnet_config() -> Result<ChainSpec, String> {
 					),
 				],
 				// Pre-funded accounts
-				vec![(
-					// 5HVgMkXJGoDGQdnTyah4shbhuaiNCmAUdqCyTdYAnr9T9Y1Q
-					hex!["beeca6037f5762c78e372d4c6e9ad167b019dac7f16e4cff01d5dab1f242ad2e"].into(),
-					100_000_000 * PLT,
-				)],
+				vec![
+					(
+						// 5HVgMkXJGoDGQdnTyah4shbhuaiNCmAUdqCyTdYAnr9T9Y1Q
+						hex!["1abbfa43b14065a01ac7f9250b07977000c84a7caf97fbab5f26a9f21f49554f"]
+							.into(),
+						100_000_000 * PLT,
+					),
+					(
+						hex!["16c1e8c292b0ca968ee84d3f33de819dd3d1466ee4a5a025c4c714582e29fa26"]
+							.into(),
+						100_000_000 * PLT,
+					),
+				],
 				true,
 			)
 		},

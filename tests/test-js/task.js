@@ -8,7 +8,7 @@ const main = async() => {
 
 
   // Check account balance
-  const alice = '5Cfkwf5vfCF34SNbxLwmDrH97NTZ6KoztXiZov5wYxkYPY2u';
+  const alice = '5CaYWkKW8hVBft5uuiQaKsatAnKPsbHBF2oSmQMZ5qAFZ9Et';
   const { nonce, data: balance } = await api.query.system.account(alice);
   console.log(`balance of ${balance.free} and a nonce of ${nonce}`);
 

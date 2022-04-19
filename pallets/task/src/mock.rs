@@ -4,8 +4,9 @@ use frame_system as system;
 use frame_system::EnsureRoot;
 use sp_core::H256;
 use sp_runtime::{
-	testing::Header,Permill,
+	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
+	Permill,
 };
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
@@ -90,9 +91,6 @@ impl pallet_task::Config for Test {
 	type CampaignDuration = CampaignDuration;
 	type SlashDeposit = ();
 	type PalletId = TaskPalletId;
-
-
-
 }
 
 pub const ALICE: u64 = 1;
@@ -106,5 +104,4 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 		.assimilate_storage(&mut t)
 		.unwrap();
 	t.into()
-
 }
