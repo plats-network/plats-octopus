@@ -52,7 +52,6 @@ pub struct Campaign<AccountId, Balance> {
 	value: Balance,
 	/// The amount held on deposit (reserved) for making this campaign.
 	bond: Balance,
-	is_pay: bool,
 }
 
 #[frame_support::pallet]
@@ -179,12 +178,13 @@ pub mod pallet {
 			// Reserved balance for client
 			let _ =
 				T::Currency::reserve(&client, bond).map_err(|_| Error::<T>::InsufficientBalance);
-			let count = Self::campaign_count();			
+			let count = Self::campaign_count();	
+			Campaigns::<T>::insert(&count, Campaign { client: client.clone(), value, bond});	
+
 			Self::deposit_campaign_account(&client, count)?;
 
-
 			CampaignCount::<T>::put(count + 1);
-			Campaigns::<T>::insert(count, Campaign { client, value, bond , is_pay:false});
+
 			Self::deposit_event(Event::NewCampaign { campaign_index: count });
 
 			Ok(())
