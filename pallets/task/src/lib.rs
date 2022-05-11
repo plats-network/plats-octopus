@@ -17,7 +17,7 @@ use codec::{Decode, Encode};
 use frame_support::{
 	pallet_prelude::*,
 	traits::{
-		Currency, ExistenceRequirement::KeepAlive, Imbalance, OnUnbalanced, ReservableCurrency,
+		Currency, ExistenceRequirement, ReservableCurrency,
 		WithdrawReasons,
 	},
 	PalletId,
@@ -52,6 +52,7 @@ pub struct Campaign<AccountId, Balance> {
 	value: Balance,
 	/// The amount held on deposit (reserved) for making this campaign.
 	bond: Balance,
+	is_pay: bool,
 }
 
 #[frame_support::pallet]
@@ -73,17 +74,10 @@ pub mod pallet {
 		#[pallet::constant]
 		type CampaignDeposit: Get<Permill>;
 
-		type RejectOrigin: EnsureOrigin<Self::Origin>;
-
-		type ApprovalOrigin: EnsureOrigin<Self::Origin>;
-
 		type RewardOrigin: EnsureOrigin<Self::Origin>;
 
-		type CampaignDuration: Get<Self::BlockNumber>;
-
-		/// Handler for the unbalanced decrease when slashing for a approval campaign.
-		type SlashDeposit: OnUnbalanced<NegativeImbalanceOf<Self>>;
-
+		// Block that user can claim their token reward
+		type ClaimDuration: Get<Self::BlockNumber>;
 		/// The task's pallet id, used for deriving its sovereign account ID.
 		#[pallet::constant]
 		type PalletId: Get<PalletId>;
@@ -108,9 +102,11 @@ pub mod pallet {
 		OptionQuery,
 	>;
 
+	/// Store balance of user that system pay when user finish campaign
 	#[pallet::storage]
-	#[pallet::getter(fn approvals)]
-	pub type ApprovalCampaigns<T> = StorageValue<_, Vec<CampaignIndex>, ValueQuery>;
+	#[pallet::getter(fn balance_of)]
+	pub type Balances<T:Config> = StorageMap<_,Twox64Concat, T::AccountId, (T::BlockNumber, BalanceOf<T>), OptionQuery>;
+
 
 	#[pallet::genesis_config]
 	pub struct GenesisConfig;
@@ -144,28 +140,17 @@ pub mod pallet {
 		NewCampaign {
 			campaign_index: CampaignIndex,
 		},
-		RejectCampaign {
-			campaign_index: CampaignIndex,
-			value: BalanceOf<T>,
-		},
-		ApproveCampaign {
-			campaign_index: CampaignIndex,
-		},
 		RemainingBudget {
 			remaining_budget: BalanceOf<T>,
 		},
 
-		ClientDeposit {
-			amount: BalanceOf<T>,
-		},
-		SlashDepositClient {
+		DepositClient {
 			campaign_index: CampaignIndex,
-			slashed: BalanceOf<T>,
+			deposit_amount: BalanceOf<T>,
 		},
 
-		Rewarded {
+		Payment {
 			campaign_index: CampaignIndex,
-			award: BalanceOf<T>,
 			account: Vec<T::AccountId>,
 		},
 	}
@@ -175,7 +160,6 @@ pub mod pallet {
 	pub enum Error<T> {
 		InsufficientBalance,
 		CampaignNotExist,
-		NotApprovalCampaign,
 		NotEnoughBalanceForUsers,
 	}
 
@@ -195,60 +179,22 @@ pub mod pallet {
 			// Reserved balance for client
 			let _ =
 				T::Currency::reserve(&client, bond).map_err(|_| Error::<T>::InsufficientBalance);
+			let count = Self::campaign_count();			
+			Self::deposit_campaign_account(&client, count)?;
 
-			let count = Self::campaign_count();
 
 			CampaignCount::<T>::put(count + 1);
-			Campaigns::<T>::insert(count, Campaign { client, value, bond });
+			Campaigns::<T>::insert(count, Campaign { client, value, bond , is_pay:false});
 			Self::deposit_event(Event::NewCampaign { campaign_index: count });
 
 			Ok(())
 		}
 
-		/// Reject creating campaign from client
-		/// Only root can execute this extrinsic call
-		/// In this case will unreseved bond amount not slash bond amount
-
-		#[pallet::weight(10_000)]
-		pub fn reject_campaign(
-			origin: OriginFor<T>,
-			campaign_index: CampaignIndex,
-		) -> DispatchResult {
-			T::RejectOrigin::ensure_origin(origin)?;
-
-			let campaign =
-				Campaigns::<T>::take(&campaign_index).ok_or(Error::<T>::CampaignNotExist)?;
-
-			let value = campaign.value;
-			let _ = T::Currency::unreserve(&campaign.client, value);
-
-			Self::deposit_event(Event::RejectCampaign { campaign_index, value });
-
-			Ok(())
-		}
-		/// Approve campaign
-		/// Only root can execute this extrinsic call
-		/// Will be deposit value amount into campaign account
-		#[pallet::weight(10_000)]
-		pub fn approve_campaign(
-			origin: OriginFor<T>,
-			campaign_index: CampaignIndex,
-		) -> DispatchResult {
-			T::ApprovalOrigin::ensure_origin(origin)?;
-			//ensure_root(origin)?;
-
-			ensure!(Campaigns::<T>::contains_key(campaign_index), Error::<T>::CampaignNotExist);
-			ApprovalCampaigns::<T>::append(campaign_index);
-			//Client deposit into campaign account
-			Self::deposit_campaign_account(campaign_index);
-			Self::deposit_event(Event::ApproveCampaign { campaign_index });
-			Ok(())
-		}
 
 		/// Reward for all users with specific campaigns
 		/// Check deposit amount is enough balance to pay for all users
 		#[pallet::weight(10_000)]
-		pub fn reward(
+		pub fn payment(
 			origin: OriginFor<T>,
 			campaign_index: CampaignIndex,
 			users: Vec<T::AccountId>,
@@ -259,10 +205,6 @@ pub mod pallet {
 			//Ensure this campaign is registered
 			ensure!(Campaigns::<T>::contains_key(campaign_index), Error::<T>::CampaignNotExist);
 
-			let approval = ApprovalCampaigns::<T>::get();
-			// Ensure this campaign is approved
-			ensure!(approval.contains(&campaign_index), Error::<T>::NotApprovalCampaign);
-
 			let campaign = Campaigns::<T>::get(&campaign_index).unwrap();
 			let total_amount = amount
 				.checked_mul(&users.len().saturated_into())
@@ -270,34 +212,36 @@ pub mod pallet {
 			ensure!(total_amount < campaign.value, Error::<T>::NotEnoughBalanceForUsers);
 
 			let budget_remain = Self::remain_balance();
-			let account_id = Self::account_id();
-
-			let mut imbalance = <PositiveImbalanceOf<T>>::zero();
-
+			
 			if let Some(p) = Self::campaigns(campaign_index) {
 				if p.value <= budget_remain {
 					Campaigns::<T>::remove(campaign_index);
-
-					let approval_remain: Vec<u32> =
-						approval.into_iter().filter(|v| *v != campaign_index).collect();
-					ApprovalCampaigns::<T>::put(approval_remain);
-
 					let _ = T::Currency::unreserve(&p.client, p.bond);
 					for user in users.iter() {
-						imbalance.subsume(T::Currency::deposit_creating(&user, amount));
+						let (_, mut balance_user) = Self::balance_of(&user).unwrap_or_default();
+						balance_user += amount;
+						<Balances<T>>::mutate(&user, |val| {
+							if let Some(val) = val {
+								val.1 = balance_user
+							}
+						});
 					}
 
-					Self::deposit_event(Event::Rewarded {
+					Self::deposit_event(Event::Payment {
 						campaign_index,
-						award: amount,
 						account: users.clone(),
 					});
 				}
 			}
 
-			let _ =
-				T::Currency::settle(&account_id, imbalance, WithdrawReasons::TRANSFER, KeepAlive);
+			Ok(())
+		}
 
+		#[pallet::weight(10_000)]
+		pub fn claim(origin: OriginFor<T>, #[pallet::compact] amount: BalanceOf<T>) -> DispatchResult {
+			let user = ensure_signed(origin)?;
+			let campaign_account = Self::account_id();
+			let _ = Self::make_transfer(campaign_account, user, amount);
 			Ok(())
 		}
 	}
@@ -309,17 +253,22 @@ impl<T: Config> Pallet<T> {
 		T::PalletId::get().into_account()
 	}
 
-	pub fn deposit_campaign_account(campaign_index: CampaignIndex) {
+	pub fn deposit_campaign_account(sender: &T::AccountId, campaign_index: CampaignIndex) -> Result<(), DispatchError> {
 		let campaign = Campaigns::<T>::get(campaign_index).unwrap();
 		let value = campaign.value;
 
-		//Slash campaign client
-		let imbalance = T::Currency::slash(&campaign.client, value).0;
+		let imbalance = T::Currency::withdraw(
+			&sender,
+			value,
+			WithdrawReasons::TRANSFER,
+			ExistenceRequirement::KeepAlive,
+		)?;
 
+		T::Currency::resolve_creating(&Self::account_id(), imbalance);
 		//Deposit into campaign account
-		T::SlashDeposit::on_unbalanced(imbalance);
 
-		Self::deposit_event(Event::SlashDepositClient { campaign_index, slashed: value });
+		Self::deposit_event(Event::DepositClient { campaign_index, deposit_amount: value });
+		Ok(())
 	}
 
 	/// Remaining balance of campaign account
@@ -328,16 +277,32 @@ impl<T: Config> Pallet<T> {
 
 		T::Currency::free_balance(&account).saturating_sub(T::Currency::minimum_balance())
 	}
-}
 
-/// Implement trait onunbalanced for pallet-task
-impl<T: Config> OnUnbalanced<NegativeImbalanceOf<T>> for Pallet<T> {
-	fn on_nonzero_unbalanced(imbalance_amount: NegativeImbalanceOf<T>) {
-		let amount = imbalance_amount.peek();
+	fn make_transfer(
+		from: T::AccountId,
+		to: T::AccountId,
+		amount: BalanceOf<T>,
+	) -> DispatchResult {
+		let (when, balance_user) = Self::balance_of(&to).unwrap_or_default();
+		ensure!(balance_user >= amount.clone(), "user does not have enough tokens");
+		let now = <frame_system::Pallet<T>>::block_number();
+		let duration = T::ClaimDuration::get();
+		if now >= when.saturating_add(duration) {
+			<Balances<T>>::mutate(&to, |val| {
+				//val.unwrap().1 -= amount
+				if let Some(val) = val {
+					val.1 -=amount
+				}
+			});
+			//<Balances<T>>::insert(to.clone(), (when, balance_user - amount.clone()));
 
-		// Must resolve into existing but better to be safe.
-		let _ = T::Currency::resolve_creating(&Self::account_id(), imbalance_amount);
+			let _ = T::Currency::transfer(&from, &to, amount, ExistenceRequirement::KeepAlive);
+		}
 
-		Self::deposit_event(Event::ClientDeposit { amount });
+
+
+		Ok(())
 	}
 }
+
+
