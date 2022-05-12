@@ -662,6 +662,7 @@ parameter_types! {
 	pub const TaskPalletId: PalletId = PalletId(*b"plt/task");
 	pub const CampaignDuration: BlockNumber = 2;
 	pub const MaxTasks: u32 = 10;
+	pub const PayoutDuration : BlockNumber = 6;
 	pub const CampaignDeposit: Permill = Permill::from_percent(2);
 }
 impl pallet_task::Config for Runtime {
@@ -671,6 +672,7 @@ impl pallet_task::Config for Runtime {
 	type CampaignDeposit = CampaignDeposit;
 	type RewardOrigin = EnsureRoot<AccountId>;
 	type ClaimDuration = CampaignDuration;
+	type PayoutDuration = PayoutDuration;
 	type PalletId = TaskPalletId;
 }
 

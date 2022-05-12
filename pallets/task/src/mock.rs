@@ -22,7 +22,7 @@ frame_support::construct_runtime!(
 	{
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
 		Balances: pallet_balances::{Pallet, Call, Config<T>,  Storage, Event<T>},
-		Task: pallet_task::{Pallet, Call,Config,  Storage, Event<T>},
+		Task: pallet_task::{Pallet, Call,  Storage, Event<T>},
 	}
 );
 
@@ -77,6 +77,7 @@ parameter_types! {
 	pub const CampaignDepositMinimum: Balance = 1000;
 	pub const CampaignDeposit : Permill = Permill::from_percent(2);
 	pub const CampaignDuration : u64 = 10;
+	pub const PayoutDuration: u64 = 20;
 	pub const TaskPalletId: PalletId = PalletId(*b"plt/task");
 }
 
@@ -87,6 +88,7 @@ impl pallet_task::Config for Test {
 	type CampaignDeposit = CampaignDeposit;
 	type RewardOrigin = EnsureRoot<u64>;
 	type ClaimDuration = CampaignDuration;
+	type PayoutDuration = PayoutDuration;
 	type PalletId = TaskPalletId;
 }
 
