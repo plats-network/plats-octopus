@@ -114,7 +114,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn balance_of)]
 	pub type Balances<T: Config> =
-		StorageMap<_, Twox64Concat, T::AccountId, (T::BlockNumber, BalanceOf<T>), OptionQuery>;
+		StorageMap<_, Twox64Concat, T::AccountId, (T::BlockNumber, BalanceOf<T>), ValueQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -144,6 +144,7 @@ pub mod pallet {
 		InsufficientBalance,
 		CampaignNotExist,
 		NotEnoughBalanceForUsers,
+		InvalidClaim,
 	}
 
 	
@@ -195,25 +196,27 @@ pub mod pallet {
 				.ok_or(ArithmeticError::Overflow)?;
 			ensure!(total_amount < campaign.value, Error::<T>::NotEnoughBalanceForUsers);
 			let budget_remain = Self::remain_balance(campaign_index);
-
+			log::info!("Budget remain is {:?}", budget_remain);
 			if let Some(p) = Self::campaigns(campaign_index) {
-				if p.value <= budget_remain {
 					
-					let _ = T::Currency::unreserve(&p.client, p.bond);
-					for user in users.iter() {
-						let (_, mut balance_user) = Self::balance_of(&user).unwrap_or_default();
-						balance_user += amount;
-						<Balances<T>>::mutate(&user, |val| {
-							if let Some(val) = val {
-								val.1 = balance_user
-							}
-						});
+				let _ = T::Currency::unreserve(&p.client, p.bond);
+				for user in users.iter() {
+					// let (_, mut balance_user) = Self::balance_of(&user).unwrap_or_default();
+					// balance_user += amount;
+					let now = <frame_system::Pallet<T>>::block_number();
+					
+					<Balances<T>>::mutate(&user, |val| {
+						val.1 = val.1.saturating_add(amount);
+						val.0 = now;
+						//val.unwrap_or_default() = (now, balance_user);
+						log::info!("eheheheheh");
 
-					}
-					CampaignPayout::<T>::insert(&campaign_index, users.clone());
+					});
 
-					Self::deposit_event(Event::Payment { campaign_index, account: users });
 				}
+				CampaignPayout::<T>::insert(&campaign_index, users.clone());
+
+				Self::deposit_event(Event::Payment { campaign_index, account: users });
 			}
 
 			Ok(())
@@ -274,47 +277,44 @@ impl<T: Config> Pallet<T> {
 		amount: BalanceOf<T>,
 	) -> DispatchResult {
 		let campaign_account = Self::account_id(index);
-		let (when, balance_user) = Self::balance_of(&to).unwrap_or_default();
+		let (when, balance_user) = Self::balance_of(&to);
 		ensure!(balance_user >= amount.clone(), "user does not have enough tokens");
 		let now = <frame_system::Pallet<T>>::block_number();
 		let duration = T::ClaimDuration::get();
 
-		if now >= when.saturating_add(duration) {
-			if balance_user == amount {
-				<Balances<T>>::insert(to, (now, BalanceOf::<T>::zero()));
+		ensure!(now >= when.saturating_add(duration), Error::<T>::InvalidClaim);
+		if balance_user == amount {
+			<Balances<T>>::insert(to, (now, BalanceOf::<T>::zero()));
 
-				//Remove campaign when user withdraw all of token reward
-				Campaigns::<T>::remove(index);
-				CampaignPayout::<T>::mutate(index, |users|{
-					users.retain(|user| user != to);
-				});
-				//remove if user claim all of token from specific campaign
-				IndexPayout::<T>::mutate(|remain_payout_index| {
-					remain_payout_index.retain(|&x| x != index);
-				});
-			} else {
-				<Balances<T>>::mutate(to, |val| {
-					//val.unwrap().1 -= amount
-					if let Some(val) = val {
-						val.1 -= amount
-					}
-				});
+			//Remove campaign when user withdraw all of token reward
+			Campaigns::<T>::remove(index);
+			CampaignPayout::<T>::mutate(index, |users|{
+				users.retain(|user| user != to);
+			});
+			//remove if user claim all of token from specific campaign
+			IndexPayout::<T>::mutate(|remain_payout_index| {
+				remain_payout_index.retain(|&x| x != index);
+			});
+		} else {
+			<Balances<T>>::mutate(to, |val| {
+				//val.unwrap().1 -= amount
+				val.1  = val.1.saturating_sub(amount);
+			});
 
-				// keep record payout when user has not withdrawn token yet
-				IndexPayout::<T>::mutate(|remain_payout_index| {
-					if !remain_payout_index.contains(&index) {
-						remain_payout_index.push(index);
-					}
-				});
-			}
-
-			let _ = T::Currency::transfer(
-				&campaign_account,
-				to,
-				amount,
-				ExistenceRequirement::KeepAlive,
-			);
+			// keep record payout when user has not withdrawn token yet
+			IndexPayout::<T>::mutate(|remain_payout_index| {
+				if !remain_payout_index.contains(&index) {
+					remain_payout_index.push(index);
+				}
+			});
 		}
+
+		let _ = T::Currency::transfer(
+			&campaign_account,
+			to,
+			amount,
+			ExistenceRequirement::KeepAlive,
+		);
 
 		Ok(())
 	}
