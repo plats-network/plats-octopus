@@ -16,16 +16,13 @@ mod benchmarking;
 use codec::{Decode, Encode};
 use frame_support::{
 	pallet_prelude::*,
-	traits::{
-		Currency, ExistenceRequirement::KeepAlive, Imbalance, OnUnbalanced, ReservableCurrency,
-		WithdrawReasons,
-	},
+	traits::{Currency, ExistenceRequirement, ReservableCurrency, WithdrawReasons},
 	PalletId,
 };
 use frame_system::pallet_prelude::*;
 use scale_info::TypeInfo;
 use sp_runtime::{
-	traits::{AccountIdConversion, CheckedMul, SaturatedConversion, Saturating},
+	traits::{AccountIdConversion, CheckedMul, SaturatedConversion, Saturating, Zero},
 	ArithmeticError, Permill,
 };
 use sp_std::vec::Vec;
@@ -34,14 +31,6 @@ pub type CampaignIndex = u32;
 
 pub type BalanceOf<T> =
 	<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
-
-pub type PositiveImbalanceOf<T> = <<T as Config>::Currency as Currency<
-	<T as frame_system::Config>::AccountId,
->>::PositiveImbalance;
-
-pub type NegativeImbalanceOf<T> = <<T as Config>::Currency as Currency<
-	<T as frame_system::Config>::AccountId,
->>::NegativeImbalance;
 
 #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Encode, Decode, Clone, PartialEq, Eq, MaxEncodedLen, RuntimeDebug, TypeInfo)]
@@ -69,21 +58,18 @@ pub mod pallet {
 		#[pallet::constant]
 		type CampaignDepositMinimum: Get<BalanceOf<Self>>;
 
-		// Percentage of campaign deposit
+		// Percentage of campaign bond for check account
 		#[pallet::constant]
 		type CampaignDeposit: Get<Permill>;
 
-		type RejectOrigin: EnsureOrigin<Self::Origin>;
-
-		type ApprovalOrigin: EnsureOrigin<Self::Origin>;
-
 		type RewardOrigin: EnsureOrigin<Self::Origin>;
 
-		type CampaignDuration: Get<Self::BlockNumber>;
+		// Duration that user can claim their token reward
+		type ClaimDuration: Get<Self::BlockNumber>;
 
-		/// Handler for the unbalanced decrease when slashing for a approval campaign.
-		type SlashDeposit: OnUnbalanced<NegativeImbalanceOf<Self>>;
-
+		/// After PayoutDuration -> system pay token automatically for user
+		/// when the user has not withdrawn all the money in specific campaign
+		type PayoutDuration: Get<Self::BlockNumber>;
 		/// The task's pallet id, used for deriving its sovereign account ID.
 		#[pallet::constant]
 		type PalletId: Get<PalletId>;
@@ -97,6 +83,22 @@ pub mod pallet {
 	#[pallet::getter(fn campaign_count)]
 	pub(crate) type CampaignCount<T> = StorageValue<_, CampaignIndex, ValueQuery>;
 
+	// Remaining payout for specific index -> pay token for user after 1 day
+	#[pallet::storage]
+	#[pallet::getter(fn index_payout)]
+	pub(crate) type IndexPayout<T> = StorageValue<_, Vec<CampaignIndex>, ValueQuery>;
+
+	// Remaining user dont withdraw token reward
+	#[pallet::storage]
+	#[pallet::getter(fn campaign_payout)]
+	pub(crate) type CampaignPayout<T: Config> = StorageMap<
+		_,
+		Twox64Concat,
+		CampaignIndex,
+		Vec<T::AccountId>,
+		ValueQuery,
+	>;
+
 	/// Campaign that have been made.
 	#[pallet::storage]
 	#[pallet::getter(fn campaigns)]
@@ -108,34 +110,11 @@ pub mod pallet {
 		OptionQuery,
 	>;
 
+	/// Store balance of user that system pay when user finish campaign
 	#[pallet::storage]
-	#[pallet::getter(fn approvals)]
-	pub type ApprovalCampaigns<T> = StorageValue<_, Vec<CampaignIndex>, ValueQuery>;
-
-	#[pallet::genesis_config]
-	pub struct GenesisConfig;
-
-	#[cfg(feature = "std")]
-	impl Default for GenesisConfig {
-		fn default() -> Self {
-			Self
-		}
-	}
-
-	#[pallet::genesis_build]
-	impl<T: Config> GenesisBuild<T> for GenesisConfig {
-		fn build(&self) {
-			//get campaign account
-			let account_id = <Pallet<T>>::account_id();
-			// get existential balance
-			let min = T::Currency::minimum_balance();
-
-			if T::Currency::free_balance(&account_id) < min {
-				// give minimum balance for campaign account
-				let _ = T::Currency::make_free_balance_be(&account_id, min);
-			}
-		}
-	}
+	#[pallet::getter(fn balance_of)]
+	pub type Balances<T: Config> =
+		StorageMap<_, Twox64Concat, T::AccountId, (T::BlockNumber, BalanceOf<T>), OptionQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -144,29 +123,18 @@ pub mod pallet {
 		NewCampaign {
 			campaign_index: CampaignIndex,
 		},
-		RejectCampaign {
+		DepositClient {
 			campaign_index: CampaignIndex,
-			value: BalanceOf<T>,
-		},
-		ApproveCampaign {
-			campaign_index: CampaignIndex,
-		},
-		RemainingBudget {
-			remaining_budget: BalanceOf<T>,
+			deposit_amount: BalanceOf<T>,
 		},
 
-		ClientDeposit {
-			amount: BalanceOf<T>,
-		},
-		SlashDepositClient {
+		Payment {
 			campaign_index: CampaignIndex,
-			slashed: BalanceOf<T>,
-		},
-
-		Rewarded {
-			campaign_index: CampaignIndex,
-			award: BalanceOf<T>,
 			account: Vec<T::AccountId>,
+		},
+		Claim {
+			campaign_index: CampaignIndex,
+			user: T::AccountId,
 		},
 	}
 
@@ -175,10 +143,10 @@ pub mod pallet {
 	pub enum Error<T> {
 		InsufficientBalance,
 		CampaignNotExist,
-		NotApprovalCampaign,
 		NotEnoughBalanceForUsers,
 	}
 
+	
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		///Create a campaign
@@ -195,60 +163,22 @@ pub mod pallet {
 			// Reserved balance for client
 			let _ =
 				T::Currency::reserve(&client, bond).map_err(|_| Error::<T>::InsufficientBalance);
-
 			let count = Self::campaign_count();
+			Campaigns::<T>::insert(&count, Campaign { client: client.clone(), value, bond });
+
+			Self::deposit_campaign_account(&client, count)?;
 
 			CampaignCount::<T>::put(count + 1);
-			Campaigns::<T>::insert(count, Campaign { client, value, bond });
+
 			Self::deposit_event(Event::NewCampaign { campaign_index: count });
 
-			Ok(())
-		}
-
-		/// Reject creating campaign from client
-		/// Only root can execute this extrinsic call
-		/// In this case will unreseved bond amount not slash bond amount
-
-		#[pallet::weight(10_000)]
-		pub fn reject_campaign(
-			origin: OriginFor<T>,
-			campaign_index: CampaignIndex,
-		) -> DispatchResult {
-			T::RejectOrigin::ensure_origin(origin)?;
-
-			let campaign =
-				Campaigns::<T>::take(&campaign_index).ok_or(Error::<T>::CampaignNotExist)?;
-
-			let value = campaign.value;
-			let _ = T::Currency::unreserve(&campaign.client, value);
-
-			Self::deposit_event(Event::RejectCampaign { campaign_index, value });
-
-			Ok(())
-		}
-		/// Approve campaign
-		/// Only root can execute this extrinsic call
-		/// Will be deposit value amount into campaign account
-		#[pallet::weight(10_000)]
-		pub fn approve_campaign(
-			origin: OriginFor<T>,
-			campaign_index: CampaignIndex,
-		) -> DispatchResult {
-			T::ApprovalOrigin::ensure_origin(origin)?;
-			//ensure_root(origin)?;
-
-			ensure!(Campaigns::<T>::contains_key(campaign_index), Error::<T>::CampaignNotExist);
-			ApprovalCampaigns::<T>::append(campaign_index);
-			//Client deposit into campaign account
-			Self::deposit_campaign_account(campaign_index);
-			Self::deposit_event(Event::ApproveCampaign { campaign_index });
 			Ok(())
 		}
 
 		/// Reward for all users with specific campaigns
 		/// Check deposit amount is enough balance to pay for all users
 		#[pallet::weight(10_000)]
-		pub fn reward(
+		pub fn payment(
 			origin: OriginFor<T>,
 			campaign_index: CampaignIndex,
 			users: Vec<T::AccountId>,
@@ -259,45 +189,46 @@ pub mod pallet {
 			//Ensure this campaign is registered
 			ensure!(Campaigns::<T>::contains_key(campaign_index), Error::<T>::CampaignNotExist);
 
-			let approval = ApprovalCampaigns::<T>::get();
-			// Ensure this campaign is approved
-			ensure!(approval.contains(&campaign_index), Error::<T>::NotApprovalCampaign);
-
 			let campaign = Campaigns::<T>::get(&campaign_index).unwrap();
 			let total_amount = amount
 				.checked_mul(&users.len().saturated_into())
 				.ok_or(ArithmeticError::Overflow)?;
 			ensure!(total_amount < campaign.value, Error::<T>::NotEnoughBalanceForUsers);
-
-			let budget_remain = Self::remain_balance();
-			let account_id = Self::account_id();
-
-			let mut imbalance = <PositiveImbalanceOf<T>>::zero();
+			let budget_remain = Self::remain_balance(campaign_index);
 
 			if let Some(p) = Self::campaigns(campaign_index) {
 				if p.value <= budget_remain {
-					Campaigns::<T>::remove(campaign_index);
-
-					let approval_remain: Vec<u32> =
-						approval.into_iter().filter(|v| *v != campaign_index).collect();
-					ApprovalCampaigns::<T>::put(approval_remain);
-
+					
 					let _ = T::Currency::unreserve(&p.client, p.bond);
 					for user in users.iter() {
-						imbalance.subsume(T::Currency::deposit_creating(&user, amount));
-					}
+						let (_, mut balance_user) = Self::balance_of(&user).unwrap_or_default();
+						balance_user += amount;
+						<Balances<T>>::mutate(&user, |val| {
+							if let Some(val) = val {
+								val.1 = balance_user
+							}
+						});
 
-					Self::deposit_event(Event::Rewarded {
-						campaign_index,
-						award: amount,
-						account: users.clone(),
-					});
+					}
+					CampaignPayout::<T>::insert(&campaign_index, users.clone());
+
+					Self::deposit_event(Event::Payment { campaign_index, account: users });
 				}
 			}
 
-			let _ =
-				T::Currency::settle(&account_id, imbalance, WithdrawReasons::TRANSFER, KeepAlive);
+			Ok(())
+		}
 
+		#[pallet::weight(10_000)]
+		pub fn claim(
+			origin: OriginFor<T>,
+			index: CampaignIndex,
+			#[pallet::compact] amount: BalanceOf<T>,
+		) -> DispatchResult {
+			let user = ensure_signed(origin)?;
+			let _ = Self::make_transfer(index, &user, amount);
+
+			Self::deposit_event(Event::Claim { campaign_index: index, user });
 			Ok(())
 		}
 	}
@@ -305,39 +236,86 @@ pub mod pallet {
 
 impl<T: Config> Pallet<T> {
 	///Get campaign account
-	pub fn account_id() -> T::AccountId {
-		T::PalletId::get().into_account()
+	pub fn account_id(index: CampaignIndex) -> T::AccountId {
+		T::PalletId::get().into_sub_account(index)
 	}
 
-	pub fn deposit_campaign_account(campaign_index: CampaignIndex) {
+	pub fn deposit_campaign_account(
+		sender: &T::AccountId,
+		campaign_index: CampaignIndex,
+	) -> Result<(), DispatchError> {
 		let campaign = Campaigns::<T>::get(campaign_index).unwrap();
 		let value = campaign.value;
 
-		//Slash campaign client
-		let imbalance = T::Currency::slash(&campaign.client, value).0;
+		let imbalance = T::Currency::withdraw(
+			&sender,
+			value,
+			WithdrawReasons::TRANSFER,
+			ExistenceRequirement::KeepAlive,
+		)?;
 
+		T::Currency::resolve_creating(&Self::account_id(campaign_index), imbalance);
 		//Deposit into campaign account
-		T::SlashDeposit::on_unbalanced(imbalance);
 
-		Self::deposit_event(Event::SlashDepositClient { campaign_index, slashed: value });
+		Self::deposit_event(Event::DepositClient { campaign_index, deposit_amount: value });
+		Ok(())
 	}
 
 	/// Remaining balance of campaign account
-	pub fn remain_balance() -> BalanceOf<T> {
-		let account = Self::account_id();
+	pub fn remain_balance(index: CampaignIndex) -> BalanceOf<T> {
+		let account = Self::account_id(index);
 
 		T::Currency::free_balance(&account).saturating_sub(T::Currency::minimum_balance())
 	}
-}
 
-/// Implement trait onunbalanced for pallet-task
-impl<T: Config> OnUnbalanced<NegativeImbalanceOf<T>> for Pallet<T> {
-	fn on_nonzero_unbalanced(imbalance_amount: NegativeImbalanceOf<T>) {
-		let amount = imbalance_amount.peek();
+	fn make_transfer(
+		index: CampaignIndex,
+		to: &T::AccountId,
+		amount: BalanceOf<T>,
+	) -> DispatchResult {
+		let campaign_account = Self::account_id(index);
+		let (when, balance_user) = Self::balance_of(&to).unwrap_or_default();
+		ensure!(balance_user >= amount.clone(), "user does not have enough tokens");
+		let now = <frame_system::Pallet<T>>::block_number();
+		let duration = T::ClaimDuration::get();
 
-		// Must resolve into existing but better to be safe.
-		let _ = T::Currency::resolve_creating(&Self::account_id(), imbalance_amount);
+		if now >= when.saturating_add(duration) {
+			if balance_user == amount {
+				<Balances<T>>::insert(to, (now, BalanceOf::<T>::zero()));
 
-		Self::deposit_event(Event::ClientDeposit { amount });
+				//Remove campaign when user withdraw all of token reward
+				Campaigns::<T>::remove(index);
+				CampaignPayout::<T>::mutate(index, |users|{
+					users.retain(|user| user != to);
+				});
+				//remove if user claim all of token from specific campaign
+				IndexPayout::<T>::mutate(|remain_payout_index| {
+					remain_payout_index.retain(|&x| x != index);
+				});
+			} else {
+				<Balances<T>>::mutate(to, |val| {
+					//val.unwrap().1 -= amount
+					if let Some(val) = val {
+						val.1 -= amount
+					}
+				});
+
+				// keep record payout when user has not withdrawn token yet
+				IndexPayout::<T>::mutate(|remain_payout_index| {
+					if !remain_payout_index.contains(&index) {
+						remain_payout_index.push(index);
+					}
+				});
+			}
+
+			let _ = T::Currency::transfer(
+				&campaign_account,
+				to,
+				amount,
+				ExistenceRequirement::KeepAlive,
+			);
+		}
+
+		Ok(())
 	}
 }

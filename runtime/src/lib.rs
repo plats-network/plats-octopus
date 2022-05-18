@@ -660,8 +660,9 @@ impl pallet_template::Config for Runtime {
 parameter_types! {
 	pub const CampaignDepositMinimum: Balance = currency::PLT;
 	pub const TaskPalletId: PalletId = PalletId(*b"plt/task");
-	pub const CampaignDuration: BlockNumber = MINUTES;
+	pub const CampaignDuration: BlockNumber = 2;
 	pub const MaxTasks: u32 = 10;
+	pub const PayoutDuration : BlockNumber = 6;
 	pub const CampaignDeposit: Permill = Permill::from_percent(2);
 }
 impl pallet_task::Config for Runtime {
@@ -669,11 +670,9 @@ impl pallet_task::Config for Runtime {
 	type Currency = Balances;
 	type CampaignDepositMinimum = CampaignDepositMinimum;
 	type CampaignDeposit = CampaignDeposit;
-	type RejectOrigin = EnsureRoot<AccountId>;
-	type ApprovalOrigin = EnsureRoot<AccountId>;
 	type RewardOrigin = EnsureRoot<AccountId>;
-	type CampaignDuration = CampaignDuration;
-	type SlashDeposit = Task;
+	type ClaimDuration = CampaignDuration;
+	type PayoutDuration = PayoutDuration;
 	type PalletId = TaskPalletId;
 }
 
