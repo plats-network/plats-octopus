@@ -117,6 +117,8 @@ pub fn development_config() -> Result<ChainSpec, String> {
 		None,
 		// Properties
 		None,
+
+		None,
 		// Extensions
 		Default::default(),
 	))
@@ -157,6 +159,7 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 		// Protocol ID
 		None,
 		// Properties
+		None,
 		None,
 		// Extensions
 		Default::default(),
@@ -237,7 +240,7 @@ fn testnet_genesis(
 		octopus_assets: Default::default(),
 		sudo: SudoConfig {
 			// Assign network admin rights.
-			key: root_key,
+			key: Some(root_key),
 		},
 	}
 }
@@ -324,6 +327,7 @@ pub fn staging_testnet_config() -> Result<ChainSpec, String> {
 		None,
 		// Protocol ID
 		Some("plats-staging-testnet"),
+		None,
 		// Properties
 		Some(
 			serde_json::from_str(
@@ -392,7 +396,7 @@ fn plats_testnet_genesis(
 		octopus_assets: Default::default(),
 		sudo: SudoConfig {
 			// Assign network admin rights.
-			key: root_key,
+			key: Some(root_key),
 		},
 	}
 }
