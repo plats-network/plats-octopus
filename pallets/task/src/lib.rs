@@ -109,7 +109,7 @@ pub mod pallet {
 	/// Store balance of user that system pay when user finish campaign
 	#[pallet::storage]
 	#[pallet::getter(fn balance_of)]
-	pub type Balances<T: Config> =
+	pub type BalanceUser<T: Config> =
 		StorageMap<_, Twox64Concat, T::AccountId, (T::BlockNumber, BalanceOf<T>), ValueQuery>;
 
 	#[pallet::event]
@@ -198,7 +198,7 @@ pub mod pallet {
 				let _ = T::Currency::unreserve(&p.client, p.bond);
 				for user in users.iter() {
 					let now = <frame_system::Pallet<T>>::block_number();
-					<Balances<T>>::mutate(&user, |val| {
+					<BalanceUser<T>>::mutate(&user, |val| {
 						val.1 = val.1.saturating_add(amount);
 						val.0 = now;
 					});
@@ -216,8 +216,9 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			index: CampaignIndex,
 			#[pallet::compact] amount: BalanceOf<T>,
+			user: T::AccountId,
 		) -> DispatchResult {
-			let user = ensure_signed(origin)?;
+			T::RewardOrigin::ensure_origin(origin)?;
 			let _ = Self::make_transfer(index, &user, amount)?;
 			Self::deposit_event(Event::Claim { campaign_index: index, user });
 			Ok(())
@@ -273,7 +274,7 @@ impl<T: Config> Pallet<T> {
 
 		ensure!(now >= when.saturating_add(duration), Error::<T>::InvalidClaim);
 		if balance_user == amount {
-			<Balances<T>>::insert(to, (now, BalanceOf::<T>::zero()));
+			<BalanceUser<T>>::insert(to, (now, BalanceOf::<T>::zero()));
 
 			//Remove campaign when user withdraw all of token reward
 			Campaigns::<T>::remove(index);
@@ -286,7 +287,7 @@ impl<T: Config> Pallet<T> {
 			});
 		} else {
 			log::info!("balance_user > amount");
-			<Balances<T>>::mutate(to, |val| {
+			<BalanceUser<T>>::mutate(to, |val| {
 				//val.unwrap().1 -= amount
 				val.1 = val.1.saturating_sub(amount);
 			});

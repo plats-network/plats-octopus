@@ -55,6 +55,7 @@ impl system::Config for Test {
 	type SystemWeightInfo = ();
 	type SS58Prefix = SS58Prefix;
 	type OnSetCode = ();
+	type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 
 parameter_types! {
@@ -76,7 +77,7 @@ impl pallet_balances::Config for Test {
 parameter_types! {
 	pub const CampaignDepositMinimum: Balance = 1000;
 	pub const CampaignDeposit : Permill = Permill::from_percent(2);
-	pub const CampaignDuration : u64 = 10;
+	pub const ClaimDuration : u64 = 10;
 	pub const PayoutDuration: u64 = 20;
 	pub const TaskPalletId: PalletId = PalletId(*b"plt/task");
 }
@@ -87,13 +88,16 @@ impl pallet_task::Config for Test {
 	type CampaignDepositMinimum = CampaignDepositMinimum;
 	type CampaignDeposit = CampaignDeposit;
 	type RewardOrigin = EnsureRoot<u64>;
-	type ClaimDuration = CampaignDuration;
+	type ClaimDuration = ClaimDuration;
 	type PayoutDuration = PayoutDuration;
 	type PalletId = TaskPalletId;
 }
 
 pub const ALICE: u64 = 1;
 pub const BOB: u64 = 2;
+
+pub const USER1: u64 = 3;
+pub const USER2: u64 = 4;
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {

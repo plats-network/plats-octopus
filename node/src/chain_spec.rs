@@ -117,7 +117,6 @@ pub fn development_config() -> Result<ChainSpec, String> {
 		None,
 		// Properties
 		None,
-
 		None,
 		// Extensions
 		Default::default(),
