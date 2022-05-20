@@ -216,8 +216,9 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			index: CampaignIndex,
 			#[pallet::compact] amount: BalanceOf<T>,
+			user: T::AccountId,
 		) -> DispatchResult {
-			let user = ensure_signed(origin)?;
+			T::RewardOrigin::ensure_origin(origin)?;
 			let _ = Self::make_transfer(index, &user, amount)?;
 			Self::deposit_event(Event::Claim { campaign_index: index, user });
 			Ok(())
