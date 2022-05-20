@@ -25,7 +25,7 @@ use sp_version::RuntimeVersion;
 // A few exports that help ease life for downstream crates.
 pub use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{KeyOwnerProofSystem, Randomness, StorageInfo, ConstU128},
+	traits::{ConstU128, KeyOwnerProofSystem, Randomness, StorageInfo},
 	weights::{
 		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
 		IdentityFee, Weight,
@@ -643,7 +643,7 @@ impl pallet_assets::Config<pallet_assets::Instance1> for Runtime {
 	type Currency = Balances;
 	type ForceOrigin = EnsureRoot<AccountId>;
 	type AssetDeposit = AssetDeposit;
-	type AssetAccountDeposit = ConstU128<{1 * currency::PLT}>;
+	type AssetAccountDeposit = ConstU128<{ 1 * currency::PLT }>;
 	type MetadataDepositBase = MetadataDepositBase;
 	type MetadataDepositPerByte = MetadataDepositPerByte;
 	type ApprovalDeposit = ApprovalDeposit;
@@ -724,7 +724,7 @@ pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
 pub type Block = generic::Block<Header, UncheckedExtrinsic>;
 /// The SignedExtension to the basic transaction logic.
 pub type SignedExtra = (
-	frame_system::CheckNonZeroSender::<Runtime>,
+	frame_system::CheckNonZeroSender<Runtime>,
 	frame_system::CheckSpecVersion<Runtime>,
 	frame_system::CheckTxVersion<Runtime>,
 	frame_system::CheckGenesis<Runtime>,
@@ -746,21 +746,19 @@ pub type Executive = frame_executive::Executive<
 	AllPalletsWithSystem,
 >;
 
-		
-#[cfg(feature = "runtime-benchmarks")]	
-#[macro_use]	
-extern crate frame_benchmarking;	
-#[cfg(feature = "runtime-benchmarks")]	
-mod benches {	
-	define_benchmarks!(	
-		[frame_benchmarking, BaselineBench::<Runtime>]	
-		[frame_system, SystemBench::<Runtime>]	
-		[pallet_balances, Balances]	
-		[pallet_timestamp, Timestamp]	
-		[pallet_template, TemplateModule]	
-	);	
+#[cfg(feature = "runtime-benchmarks")]
+#[macro_use]
+extern crate frame_benchmarking;
+#[cfg(feature = "runtime-benchmarks")]
+mod benches {
+	define_benchmarks!(
+		[frame_benchmarking, BaselineBench::<Runtime>]
+		[frame_system, SystemBench::<Runtime>]
+		[pallet_balances, Balances]
+		[pallet_timestamp, Timestamp]
+		[pallet_template, TemplateModule]
+	);
 }
-
 
 impl_runtime_apis! {
 	impl sp_api::Core<Block> for Runtime {

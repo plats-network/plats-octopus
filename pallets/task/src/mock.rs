@@ -96,8 +96,8 @@ impl pallet_task::Config for Test {
 pub const ALICE: u64 = 1;
 pub const BOB: u64 = 2;
 
-pub const USER1 : u64 = 3;
-pub const USER2 : u64 = 4;
+pub const USER1: u64 = 3;
+pub const USER2: u64 = 4;
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
