@@ -80,10 +80,6 @@ pub mod pallet {
 	#[pallet::without_storage_info]
 	pub struct Pallet<T>(_);
 
-	#[pallet::storage]
-	#[pallet::getter(fn campaign_count)]
-	pub(crate) type CampaignCount<T> = StorageValue<_, CampaignIndex, ValueQuery>;
-
 	// Remaining payout for specific index -> pay token for user after 1 day
 	#[pallet::storage]
 	#[pallet::getter(fn index_payout)]
@@ -153,6 +149,7 @@ pub mod pallet {
 		#[pallet::weight(10_000)]
 		pub fn create_campaign(
 			origin: OriginFor<T>,
+			campaign_index: CampaignIndex,
 			#[pallet::compact] value: BalanceOf<T>,
 		) -> DispatchResult {
 			let client = ensure_signed(origin)?;
@@ -161,14 +158,12 @@ pub mod pallet {
 			// Reserved balance for client
 			let _ =
 				T::Currency::reserve(&client, bond).map_err(|_| Error::<T>::InsufficientBalance);
-			let count = Self::campaign_count();
-			Campaigns::<T>::insert(&count, Campaign { client: client.clone(), value, bond });
+			Campaigns::<T>::insert(&campaign_index, Campaign { client: client.clone(), value, bond });
 
-			Self::deposit_campaign_account(&client, count)?;
+			Self::deposit_campaign_account(&client, campaign_index)?;
 
-			CampaignCount::<T>::put(count + 1);
 
-			Self::deposit_event(Event::NewCampaign { campaign_index: count });
+			Self::deposit_event(Event::NewCampaign { campaign_index });
 
 			Ok(())
 		}

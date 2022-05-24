@@ -1,4 +1,4 @@
-use super::*;
+
 use crate::{mock::*, Error};
 use frame_support::{assert_noop, assert_ok};
 
@@ -6,12 +6,9 @@ use frame_support::{assert_noop, assert_ok};
 fn create_campaign_should_work() {
 	new_test_ext().execute_with(|| {
 		// Dispatch a signed extrinsic.
-		assert_ok!(Task::create_campaign(Origin::signed(BOB), 1000));
-		//Check count
-		let count = Task::campaign_count();
-		assert_eq!(count, 1);
+		assert_ok!(Task::create_campaign(Origin::signed(BOB),0,  1000));
 
-		let campaign = Task::campaigns(count - 1).unwrap();
+		let campaign = Task::campaigns(0).unwrap();
 		//Check client
 		assert_eq!(campaign.client, BOB);
 		//Check value
@@ -27,7 +24,7 @@ fn create_campaign_should_work() {
 		assert_eq!(Balances::free_balance(sys_account_1), 1000);
 
 		//Create campaign 2
-		assert_ok!(Task::create_campaign(Origin::signed(BOB), 5000));
+		assert_ok!(Task::create_campaign(Origin::signed(BOB),1, 5000));
 		//Check client balance should be reserve bond amount when deposi for campaign 2
 		//reserve amount = 1000.max(5000*permil(2)) = 1000
 		//(T::CampaignDepositMinimum::get()).max(T::CampaignDeposit::get() * value);
@@ -39,7 +36,7 @@ fn create_campaign_should_work() {
 fn payment_should_be_working() {
 	new_test_ext().execute_with(|| {
 		// Dispatch a signed extrinsic.
-		assert_ok!(Task::create_campaign(Origin::signed(BOB), 5000));
+		assert_ok!(Task::create_campaign(Origin::signed(BOB), 0, 5000));
 		System::set_block_number(10);
 		assert_ok!(Task::payment(Origin::root(), 0, vec![USER1, USER2], 1000u32.into()));
 		//Check unreserved balance for BOB
@@ -58,7 +55,7 @@ fn payment_should_be_working() {
 fn claim_should_be_working() {
 	new_test_ext().execute_with(|| {
 		// Dispatch a signed extrinsic.
-		assert_ok!(Task::create_campaign(Origin::signed(BOB), 5000));
+		assert_ok!(Task::create_campaign(Origin::signed(BOB), 0, 5000));
 		System::set_block_number(10);
 		assert_ok!(Task::payment(Origin::root(), 0, vec![USER1, USER2], 1000u32.into()));
 		//Check balance of user 1
