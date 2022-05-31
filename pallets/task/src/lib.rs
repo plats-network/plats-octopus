@@ -186,7 +186,7 @@ pub mod pallet {
 			let total_amount = amount
 				.checked_mul(&users.len().saturated_into())
 				.ok_or(ArithmeticError::Overflow)?;
-			ensure!(total_amount < campaign.value, Error::<T>::NotEnoughBalanceForUsers);
+			ensure!(total_amount <= campaign.value, Error::<T>::NotEnoughBalanceForUsers);
 			let budget_remain = Self::remain_balance(campaign_index);
 			log::info!("Budget remain is {:?}", budget_remain);
 			if let Some(p) = Self::campaigns(campaign_index) {
@@ -296,7 +296,7 @@ impl<T: Config> Pallet<T> {
 		}
 
 		let _ =
-			T::Currency::transfer(&campaign_account, to, amount, ExistenceRequirement::KeepAlive);
+			T::Currency::transfer(&campaign_account, to, amount, ExistenceRequirement::KeepAlive)?;
 
 		Ok(())
 	}
