@@ -68,13 +68,27 @@ const main = async() => {
   const users = ["5HMabVtSJsRrL2756NFeC269Bf5EmZm1zH21TvewmneaCZk5"]
   const unsub3 = await api.tx.sudo
   .sudo(
-    api.tx.task.reward(0,users,10000 )
+    api.tx.task.payment(0,users,10000 )
   )
   .signAndSend(ROOT, (result) => {
     if (result.status.isFinalized) {
       console.log(`Transaction finalized at blockHash ${result.status.asFinalized}`);
       console.log("Sudo key reward this campaign");
       unsub3();
+    }
+
+  });
+
+  const users = ["5HMabVtSJsRrL2756NFeC269Bf5EmZm1zH21TvewmneaCZk5"]
+  const unsub4 = await api.tx.sudo
+  .sudo(
+    api.tx.task.claim(0,10000,users )
+  )
+  .signAndSend(ROOT, (result) => {
+    if (result.status.isFinalized) {
+      console.log(`Transaction finalized at blockHash ${result.status.asFinalized}`);
+      console.log("Sudo key reward this campaign");
+      unsub4();
     }
 
   });
