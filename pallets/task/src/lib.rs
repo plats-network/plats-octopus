@@ -80,10 +80,6 @@ pub mod pallet {
 	#[pallet::without_storage_info]
 	pub struct Pallet<T>(_);
 
-	#[pallet::storage]
-	#[pallet::getter(fn campaign_count)]
-	pub(crate) type CampaignCount<T> = StorageValue<_, CampaignIndex, ValueQuery>;
-
 	// Remaining payout for specific index -> pay token for user after 1 day
 	#[pallet::storage]
 	#[pallet::getter(fn index_payout)]
@@ -153,6 +149,7 @@ pub mod pallet {
 		#[pallet::weight(10_000)]
 		pub fn create_campaign(
 			origin: OriginFor<T>,
+			campaign_index: CampaignIndex,
 			#[pallet::compact] value: BalanceOf<T>,
 		) -> DispatchResult {
 			let client = ensure_signed(origin)?;
@@ -161,14 +158,12 @@ pub mod pallet {
 			// Reserved balance for client
 			let _ =
 				T::Currency::reserve(&client, bond).map_err(|_| Error::<T>::InsufficientBalance);
-			let count = Self::campaign_count();
-			Campaigns::<T>::insert(&count, Campaign { client: client.clone(), value, bond });
+			Campaigns::<T>::insert(&campaign_index, Campaign { client: client.clone(), value, bond });
 
-			Self::deposit_campaign_account(&client, count)?;
+			Self::deposit_campaign_account(&client, campaign_index)?;
 
-			CampaignCount::<T>::put(count + 1);
 
-			Self::deposit_event(Event::NewCampaign { campaign_index: count });
+			Self::deposit_event(Event::NewCampaign { campaign_index });
 
 			Ok(())
 		}
@@ -191,7 +186,7 @@ pub mod pallet {
 			let total_amount = amount
 				.checked_mul(&users.len().saturated_into())
 				.ok_or(ArithmeticError::Overflow)?;
-			ensure!(total_amount < campaign.value, Error::<T>::NotEnoughBalanceForUsers);
+			ensure!(total_amount <= campaign.value, Error::<T>::NotEnoughBalanceForUsers);
 			let budget_remain = Self::remain_balance(campaign_index);
 			log::info!("Budget remain is {:?}", budget_remain);
 			if let Some(p) = Self::campaigns(campaign_index) {
@@ -301,7 +296,7 @@ impl<T: Config> Pallet<T> {
 		}
 
 		let _ =
-			T::Currency::transfer(&campaign_account, to, amount, ExistenceRequirement::KeepAlive);
+			T::Currency::transfer(&campaign_account, to, amount, ExistenceRequirement::KeepAlive)?;
 
 		Ok(())
 	}
