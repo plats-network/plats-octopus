@@ -6,13 +6,13 @@ use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
-	Permill,
+	AccountId32, Permill,
 };
-
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 pub type Balance = u128;
+pub type AccountId = AccountId32;
 // Configure a mock runtime to test the pallet.
 frame_support::construct_runtime!(
 	pub enum Test where
@@ -42,7 +42,7 @@ impl system::Config for Test {
 	type BlockNumber = u64;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
-	type AccountId = u64;
+	type AccountId = AccountId;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Header = Header;
 	type Event = Event;
@@ -87,17 +87,17 @@ impl pallet_task::Config for Test {
 	type Currency = Balances;
 	type CampaignDepositMinimum = CampaignDepositMinimum;
 	type CampaignDeposit = CampaignDeposit;
-	type RewardOrigin = EnsureRoot<u64>;
+	type RewardOrigin = EnsureRoot<AccountId>;
 	type ClaimDuration = ClaimDuration;
 	type PayoutDuration = PayoutDuration;
 	type PalletId = TaskPalletId;
 }
 
-pub const ALICE: u64 = 1;
-pub const BOB: u64 = 2;
+pub const ALICE: AccountId32 = AccountId32::new([1u8; 32]);
+pub const BOB: AccountId32 = AccountId32::new([2u8; 32]);
 
-pub const USER1: u64 = 3;
-pub const USER2: u64 = 4;
+pub const USER1: AccountId32 = AccountId32::new([3u8; 32]);
+pub const USER2: AccountId32 = AccountId32::new([4u8; 32]);
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {

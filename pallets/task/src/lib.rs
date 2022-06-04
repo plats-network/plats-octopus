@@ -27,7 +27,7 @@ use sp_runtime::{
 };
 use sp_std::vec::Vec;
 
-pub type CampaignIndex = u32;
+pub type CampaignIndex = Vec<u8>;
 
 pub type BalanceOf<T> =
 	<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
@@ -158,10 +158,12 @@ pub mod pallet {
 			// Reserved balance for client
 			let _ =
 				T::Currency::reserve(&client, bond).map_err(|_| Error::<T>::InsufficientBalance);
-			Campaigns::<T>::insert(&campaign_index, Campaign { client: client.clone(), value, bond });
+			Campaigns::<T>::insert(
+				&campaign_index,
+				Campaign { client: client.clone(), value, bond },
+			);
 
-			Self::deposit_campaign_account(&client, campaign_index)?;
-
+			Self::deposit_campaign_account(&client, campaign_index.clone())?;
 
 			Self::deposit_event(Event::NewCampaign { campaign_index });
 
@@ -180,16 +182,16 @@ pub mod pallet {
 			T::RewardOrigin::ensure_origin(origin)?;
 
 			//Ensure this campaign is registered
-			ensure!(Campaigns::<T>::contains_key(campaign_index), Error::<T>::CampaignNotExist);
+			ensure!(Campaigns::<T>::contains_key(&campaign_index), Error::<T>::CampaignNotExist);
 
 			let campaign = Campaigns::<T>::get(&campaign_index).unwrap();
 			let total_amount = amount
 				.checked_mul(&users.len().saturated_into())
 				.ok_or(ArithmeticError::Overflow)?;
 			ensure!(total_amount <= campaign.value, Error::<T>::NotEnoughBalanceForUsers);
-			let budget_remain = Self::remain_balance(campaign_index);
+			let budget_remain = Self::remain_balance(&campaign_index);
 			log::info!("Budget remain is {:?}", budget_remain);
-			if let Some(p) = Self::campaigns(campaign_index) {
+			if let Some(p) = Self::campaigns(&campaign_index) {
 				let _ = T::Currency::unreserve(&p.client, p.bond);
 				for user in users.iter() {
 					let now = <frame_system::Pallet<T>>::block_number();
@@ -214,7 +216,7 @@ pub mod pallet {
 			user: T::AccountId,
 		) -> DispatchResult {
 			T::RewardOrigin::ensure_origin(origin)?;
-			let _ = Self::make_transfer(index, &user, amount)?;
+			let _ = Self::make_transfer(index.clone(), &user, amount)?;
 			Self::deposit_event(Event::Claim { campaign_index: index, user });
 			Ok(())
 		}
@@ -223,7 +225,7 @@ pub mod pallet {
 
 impl<T: Config> Pallet<T> {
 	///Get campaign account
-	pub fn account_id(index: CampaignIndex) -> T::AccountId {
+	pub fn account_id(index: &CampaignIndex) -> T::AccountId {
 		T::PalletId::get().into_sub_account(index)
 	}
 
@@ -231,7 +233,7 @@ impl<T: Config> Pallet<T> {
 		sender: &T::AccountId,
 		campaign_index: CampaignIndex,
 	) -> Result<(), DispatchError> {
-		let campaign = Campaigns::<T>::get(campaign_index).unwrap();
+		let campaign = Campaigns::<T>::get(&campaign_index).unwrap();
 		let value = campaign.value;
 
 		let imbalance = T::Currency::withdraw(
@@ -241,7 +243,7 @@ impl<T: Config> Pallet<T> {
 			ExistenceRequirement::KeepAlive,
 		)?;
 
-		T::Currency::resolve_creating(&Self::account_id(campaign_index), imbalance);
+		T::Currency::resolve_creating(&Self::account_id(&campaign_index), imbalance);
 		//Deposit into campaign account
 
 		Self::deposit_event(Event::DepositClient { campaign_index, deposit_amount: value });
@@ -249,7 +251,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Remaining balance of campaign account
-	pub fn remain_balance(index: CampaignIndex) -> BalanceOf<T> {
+	pub fn remain_balance(index: &CampaignIndex) -> BalanceOf<T> {
 		let account = Self::account_id(index);
 
 		T::Currency::free_balance(&account).saturating_sub(T::Currency::minimum_balance())
@@ -261,7 +263,7 @@ impl<T: Config> Pallet<T> {
 		amount: BalanceOf<T>,
 	) -> DispatchResult {
 		ensure!(CampaignPayout::<T>::get(&index).contains(to), Error::<T>::UserNotReward);
-		let campaign_account = Self::account_id(index);
+		let campaign_account = Self::account_id(&index);
 		let (when, balance_user) = Self::balance_of(&to);
 		ensure!(balance_user >= amount.clone(), Error::<T>::RemainingBalanceTooLow);
 		let now = <frame_system::Pallet<T>>::block_number();
@@ -272,13 +274,13 @@ impl<T: Config> Pallet<T> {
 			<BalanceUser<T>>::insert(to, (now, BalanceOf::<T>::zero()));
 
 			//Remove campaign when user withdraw all of token reward
-			Campaigns::<T>::remove(index);
-			CampaignPayout::<T>::mutate(index, |users| {
+			Campaigns::<T>::remove(&index);
+			CampaignPayout::<T>::mutate(&index, |users| {
 				users.retain(|user| user != to);
 			});
 			//remove if user claim all of token from specific campaign
 			IndexPayout::<T>::mutate(|remain_payout_index| {
-				remain_payout_index.retain(|&x| x != index);
+				remain_payout_index.retain(|x| *x != index);
 			});
 		} else {
 			log::info!("balance_user > amount");
@@ -294,7 +296,6 @@ impl<T: Config> Pallet<T> {
 				}
 			});
 		}
-
 		let _ =
 			T::Currency::transfer(&campaign_account, to, amount, ExistenceRequirement::KeepAlive)?;
 
