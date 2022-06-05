@@ -119,7 +119,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("appchain-plats"),
 	impl_name: create_runtime_str!("plats"),
 	authoring_version: 1,
-	spec_version: 102,
+	spec_version: 103,
 	impl_version: 1,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -666,7 +666,7 @@ impl pallet_template::Config for Runtime {
 parameter_types! {
 	pub const CampaignDepositMinimum: Balance = currency::PLT;
 	pub const TaskPalletId: PalletId = PalletId(*b"plt/task");
-	pub const CampaignDuration: BlockNumber = 2;
+	pub const ClaimDuration: BlockNumber = 2;
 	pub const MaxTasks: u32 = 10;
 	pub const PayoutDuration : BlockNumber = 6;
 	pub const CampaignDeposit: Permill = Permill::from_percent(2);
@@ -677,7 +677,7 @@ impl pallet_task::Config for Runtime {
 	type CampaignDepositMinimum = CampaignDepositMinimum;
 	type CampaignDeposit = CampaignDeposit;
 	type RewardOrigin = EnsureRoot<AccountId>;
-	type ClaimDuration = CampaignDuration;
+	type ClaimDuration = ClaimDuration;
 	type PayoutDuration = PayoutDuration;
 	type PalletId = TaskPalletId;
 }

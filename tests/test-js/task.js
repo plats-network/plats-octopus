@@ -2,7 +2,7 @@ const { ApiPromise, WsProvider, Keyring } = require('@polkadot/api');
 const BN = require('bn.js');
 
 const main = async() => {
-  const provider = new WsProvider('ws://18.139.30.168:9944');
+  const provider = new WsProvider('ws://139.59.111.83:9944');
   //const provider = new HttpProvider('http://localhost:9933');
   const api = await ApiPromise.create({ provider });
   const PHRASE_TEST_ACCOUNT = 'speak sentence monster because comfort feature puppy area team piece plug field';
@@ -23,75 +23,72 @@ const main = async() => {
   // create campaign
   /// Parameter: 
   /// + who: everyone ->sign this extrinsic
+  /// + id: string
   /// + value: amount of token for this campaign
-  const unsub = await api.tx.task
-  .createCampaign(10000000000)
-  .signAndSend(TEST_ACCOUNT, (result) => {
-    console.log(`Current status is ${result.status}`);
 
-  if (result.status.isFinalized) {
-      console.log(`Transaction finalized at blockHash ${result.status.asFinalized}`);
-      console.log("Create campaign successfully");
-      unsub();
-    }
-  });
+  // const unsub = await api.tx.task
+  // .createCampaign(0, 10000000000)
+  // .signAndSend(TEST_ACCOUNT, (result) => {
+  //   console.log(`Current status is ${result.status}`);
 
-  // Right now we have campaign index =0
+  // if (result.status.isFinalized) {
+  //     console.log(`Transaction finalized at blockHash ${result.status.asFinalized}`);
+  //     console.log("Create campaign successfully");
+  //     unsub();
+  //   }
+  // });
 
-  // Approve campaign
-  // should be root key can call this function (sudo key)
+
+
+  // System payment balance for user
   // Parameter:
   // + who: root key ->sign this extrinsic
-  // + campaign_index: u32
-
-
-  const unsub1 = await api.tx.sudo
-  .sudo(
-    api.tx.task.approveCampaign(0)
-  )
-  .signAndSend(ROOT, (result) => {
-    if (result.status.isFinalized) {
-      console.log(`Transaction finalized at blockHash ${result.status.asFinalized}`);
-      console.log("Sudo key approve this campaign");
-      unsub1();
-    }
-
-  });
-
-  /// Campain should be approved
-  // Parameter:
-  // + who: root key ->sign this extrinsic
-  // + campaign_index: u32
+  // + campaign_index: string
   // + users: Vec<AccountId>
   // + amount: u128
   
-  const users = ["5HMabVtSJsRrL2756NFeC269Bf5EmZm1zH21TvewmneaCZk5"]
-  const unsub3 = await api.tx.sudo
-  .sudo(
-    api.tx.task.payment(0,users,10000 )
-  )
-  .signAndSend(ROOT, (result) => {
-    if (result.status.isFinalized) {
-      console.log(`Transaction finalized at blockHash ${result.status.asFinalized}`);
-      console.log("Sudo key reward this campaign");
-      unsub3();
-    }
+  // const users = ["5HMabVtSJsRrL2756NFeC269Bf5EmZm1zH21TvewmneaCZk5"]
+  // const unsub3 = await api.tx.sudo
+  // .sudo(
+  //   api.tx.task.payment(0,users,10000 )
+  // )
+  // .signAndSend(ROOT, (result) => {
+  //   if (result.status.isFinalized) {
+  //     console.log(`Transaction finalized at blockHash ${result.status.asFinalized}`);
+  //     console.log("Sudo key reward this campaign");
+  //     unsub3();
+  //   }
 
-  });
+  // });
 
-  const users = ["5HMabVtSJsRrL2756NFeC269Bf5EmZm1zH21TvewmneaCZk5"]
-  const unsub4 = await api.tx.sudo
-  .sudo(
-    api.tx.task.claim(0,10000,users )
-  )
-  .signAndSend(ROOT, (result) => {
-    if (result.status.isFinalized) {
-      console.log(`Transaction finalized at blockHash ${result.status.asFinalized}`);
-      console.log("Sudo key reward this campaign");
-      unsub4();
-    }
 
-  });
+  /// User claim
+  // Parameter:
+  // + who: root key ->sign this extrinsic
+  // + campaign_index: string
+  // + amount: u128
+  // + user : AccountId
+
+  // const user = "5HMabVtSJsRrL2756NFeC269Bf5EmZm1zH21TvewmneaCZk5"
+  // const unsub4 = await api.tx.sudo
+  // .sudo(
+  //   api.tx.task.claim(0,5000,user )
+  // )
+  // .signAndSend(ROOT, (result) => {
+  //   if (result.status.isFinalized) {
+  //     console.log(`Transaction finalized at blockHash ${result.status.asFinalized}`);
+  //     console.log("Sudo key reward this campaign");
+  //     unsub4();
+  //   }
+
+  // });
+
+  ///Get remaining balance that user can claim
+  // const user = "5HMabVtSJsRrL2756NFeC269Bf5EmZm1zH21TvewmneaCZk5"
+  // const balance_user = await api.query.task.balanceUser(user);
+  // const [block, remaining_balance] = balance_user;
+  // console.log(`Remaining balance of user can claim: ${remaining_balance.toNumber()}`);
+
 
 
   
