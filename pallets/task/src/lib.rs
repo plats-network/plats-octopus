@@ -17,7 +17,7 @@ use codec::{Decode, Encode};
 use frame_support::{
 	pallet_prelude::*,
 	traits::{Currency, ExistenceRequirement, ReservableCurrency, WithdrawReasons},
-	PalletId,
+	transactional, PalletId,
 };
 use frame_system::pallet_prelude::*;
 use scale_info::TypeInfo;
@@ -80,7 +80,6 @@ pub mod pallet {
 	#[pallet::without_storage_info]
 	pub struct Pallet<T>(_);
 
-
 	/// Campaign that have been made.
 	#[pallet::storage]
 	#[pallet::getter(fn campaigns)]
@@ -122,12 +121,11 @@ pub mod pallet {
 	// Errors inform users that something went wrong.
 	#[pallet::error]
 	pub enum Error<T> {
-		InsufficientBalance,
 		CampaignNotExist,
 		NotEnoughBalanceForUsers,
 		InvalidClaim,
 		UserNotReward,
-		RemainingBalanceTooLow,
+		CanNotClaim,
 	}
 	#[pallet::genesis_config]
 	pub struct GenesisConfig;
@@ -169,8 +167,7 @@ pub mod pallet {
 
 			let bond = (T::CampaignDepositMinimum::get()).max(T::CampaignDeposit::get() * value);
 			// Reserved balance for client
-			let _ =
-				T::Currency::reserve(&client, bond).map_err(|_| Error::<T>::InsufficientBalance);
+			let _ = T::Currency::reserve(&client, bond)?;
 			Campaigns::<T>::insert(
 				&campaign_index,
 				Campaign { client: client.clone(), value, bond },
@@ -186,6 +183,7 @@ pub mod pallet {
 		/// Reward for all users with specific campaigns
 		/// Check deposit amount is enough balance to pay for all users
 		#[pallet::weight(10_000)]
+		#[transactional]
 		pub fn payment(
 			origin: OriginFor<T>,
 			campaign_index: CampaignIndex,
@@ -227,7 +225,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			T::RewardOrigin::ensure_origin(origin)?;
 			let _ = Self::make_transfer(&user, amount)?;
-			Self::deposit_event(Event::Claim {  user });
+			Self::deposit_event(Event::Claim { user });
 			Ok(())
 		}
 	}
@@ -239,6 +237,7 @@ impl<T: Config> Pallet<T> {
 		T::PalletId::get().into_account()
 	}
 
+	#[transactional]
 	pub fn deposit_campaign_account(
 		sender: &T::AccountId,
 		campaign_index: CampaignIndex,
@@ -267,28 +266,24 @@ impl<T: Config> Pallet<T> {
 		T::Currency::free_balance(&account).saturating_sub(T::Currency::minimum_balance())
 	}
 
-	fn make_transfer(
-		to: &T::AccountId,
-		amount: BalanceOf<T>,
-	) -> DispatchResult {
+	#[transactional]
+	fn make_transfer(to: &T::AccountId, amount: BalanceOf<T>) -> DispatchResult {
 		//ensure!(CampaignPayout::<T>::get(&index).contains(to), Error::<T>::UserNotReward);
 		let campaign_account = Self::account_id();
 		let (when, balance_user) = Self::balance_of(&to);
-		ensure!(balance_user >= amount.clone(), Error::<T>::RemainingBalanceTooLow);
+		ensure!(balance_user >= amount.clone(), Error::<T>::CanNotClaim);
 		let now = <frame_system::Pallet<T>>::block_number();
 		let duration = T::ClaimDuration::get();
 
 		ensure!(now >= when.saturating_add(duration), Error::<T>::InvalidClaim);
 		if balance_user == amount {
 			<BalanceUser<T>>::insert(to, (now, BalanceOf::<T>::zero()));
-
 		} else {
 			log::info!("balance_user > amount");
 			<BalanceUser<T>>::mutate(to, |val| {
 				//val.unwrap().1 -= amount
 				val.1 = val.1.saturating_sub(amount);
 			});
-
 		}
 
 		let _ =

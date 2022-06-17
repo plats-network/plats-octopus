@@ -98,6 +98,7 @@ pub const BOB: AccountId32 = AccountId32::new([2u8; 32]);
 
 pub const USER1: AccountId32 = AccountId32::new([3u8; 32]);
 pub const USER2: AccountId32 = AccountId32::new([4u8; 32]);
+pub const USER3: AccountId32 = AccountId32::new([5u8; 32]);
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
