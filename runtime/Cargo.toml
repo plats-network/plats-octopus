@@ -7,7 +7,6 @@ runtime-benchmarks = [
     'frame-system/runtime-benchmarks',
     'hex-literal',
     'pallet-balances/runtime-benchmarks',
-    'pallet-template/runtime-benchmarks',
     'pallet-timestamp/runtime-benchmarks',
     'sp-runtime/runtime-benchmarks',
 ]
@@ -22,7 +21,6 @@ std = [
     'pallet-balances/std',
     'pallet-grandpa/std',
     'pallet-sudo/std',
-    'pallet-template/std',
     'pallet-timestamp/std',
     'pallet-transaction-payment-rpc-runtime-api/std',
     'pallet-transaction-payment/std',
@@ -67,7 +65,7 @@ license = 'Apache-2.0'
 name = 'appchain-plats-runtime'
 publish = false
 repository = ''
-version = '0.9.18'
+version = '0.0.1'
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
 
@@ -76,7 +74,6 @@ codec = { package = 'parity-scale-codec', version = '3.0.0', default-features = 
 hex-literal = { version = '0.3.4', optional = true }
 scale-info = { version = '2.0.0', default-features = false, features = ['derive'] }
 
-pallet-template = { path = '../pallets/template', version = '3.0.0', default-features = false }
 pallet-task = { path = '../pallets/task', version = '3.0.0', default-features = false }
 
 
