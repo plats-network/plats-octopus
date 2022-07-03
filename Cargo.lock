@@ -99,7 +99,7 @@ checksum = "08f9b8508dccb7687a1d6c4ce66b2b0ecef467c94667de27d8d7fe1f8d2a9cdc"
 
 [[package]]
 name = "appchain-plats-runtime"
-version = "0.9.18"
+version = "0.9.0"
 dependencies = [
  "beefy-primitives",
  "frame-benchmarking",
@@ -126,7 +126,6 @@ dependencies = [
  "pallet-session",
  "pallet-sudo",
  "pallet-task",
- "pallet-template",
  "pallet-timestamp",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
@@ -4375,20 +4374,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-template"
-version = "3.0.0"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-runtime",
-]
-
-[[package]]
 name = "pallet-timestamp"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate.git?branch=polkadot-v0.9.18#fc3fd073d3a0acf9933c3994b660ebd7b5833f65"
@@ -4823,7 +4808,7 @@ checksum = "e8d0eef3571242013a0d5dc84861c3ae4a652e56e12adf8bdc26ff5f8cb34c94"
 
 [[package]]
 name = "plats"
-version = "1.0.0"
+version = "0.9.0"
 dependencies = [
  "appchain-plats-runtime",
  "beefy-gadget",

@@ -58,8 +58,6 @@ use sp_runtime::{
 };
 use static_assertions::const_assert;
 
-/// Import the template pallet.
-pub use pallet_template;
 
 /// Import the pallet task
 
@@ -658,10 +656,6 @@ impl pallet_sudo::Config for Runtime {
 	type Call = Call;
 }
 
-/// Configure the pallet-template in pallets/template.
-impl pallet_template::Config for Runtime {
-	type Event = Event;
-}
 
 parameter_types! {
 	pub const CampaignDepositMinimum: Balance = currency::PLAT;
@@ -708,9 +702,6 @@ construct_runtime!(
 		Beefy: pallet_beefy,
 		MmrLeaf: pallet_beefy_mmr,
 		Sudo: pallet_sudo,
-		// Include the custom logic from the pallet-template in the runtime.
-		TemplateModule: pallet_template,
-
 		// Pallet task
 		Task: pallet_task,
 	}
@@ -756,7 +747,6 @@ mod benches {
 		[frame_system, SystemBench::<Runtime>]
 		[pallet_balances, Balances]
 		[pallet_timestamp, Timestamp]
-		[pallet_template, TemplateModule]
 	);
 }
 
