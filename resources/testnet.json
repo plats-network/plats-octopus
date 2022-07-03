@@ -8,7 +8,7 @@
   "properties": {
     "SS58Prefix": 42,
     "tokenDecimals": 18,
-    "tokenSymbol": "PLT"
+    "tokenSymbol": "PLAT"
   },
   "forkBlocks": null,
   "badBlocks": null,

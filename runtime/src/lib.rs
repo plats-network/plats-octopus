@@ -131,8 +131,8 @@ pub mod currency {
 	use super::Balance;
 
 	pub const UNITS: Balance = 1_000_000_000_000_000_000;
-	pub const PLT: Balance = UNITS;
-	pub const CENTS: Balance = PLT / 100;
+	pub const PLAT: Balance = UNITS;
+	pub const CENTS: Balance = PLAT / 100;
 	pub const MILLICENTS: Balance = CENTS / 1_000;
 }
 
@@ -503,8 +503,8 @@ impl pallet_mmr::Config for Runtime {
 }
 
 parameter_types! {
-	pub const ClassDeposit: Balance = 100 * currency::PLT;
-	pub const InstanceDeposit: Balance = 1 * currency::PLT;
+	pub const ClassDeposit: Balance = 100 * currency::PLAT;
+	pub const InstanceDeposit: Balance = 1 * currency::PLAT;
 	pub const KeyLimit: u32 = 32;
 	pub const ValueLimit: u32 = 256;
 }
@@ -626,11 +626,11 @@ impl pallet_octopus_upward_messages::Config for Runtime {
 }
 
 parameter_types! {
-	pub const AssetDeposit: Balance = 100 * currency::PLT;
-	pub const ApprovalDeposit: Balance = 1 * currency::PLT;
+	pub const AssetDeposit: Balance = 100 * currency::PLAT;
+	pub const ApprovalDeposit: Balance = 1 * currency::PLAT;
 	pub const StringLimit: u32 = 50;
-	pub const MetadataDepositBase: Balance = 10 * currency::PLT;
-	pub const MetadataDepositPerByte: Balance = 1 * currency::PLT;
+	pub const MetadataDepositBase: Balance = 10 * currency::PLAT;
+	pub const MetadataDepositPerByte: Balance = 1 * currency::PLAT;
 }
 
 pub type AssetBalance = u128;
@@ -643,7 +643,7 @@ impl pallet_assets::Config<pallet_assets::Instance1> for Runtime {
 	type Currency = Balances;
 	type ForceOrigin = EnsureRoot<AccountId>;
 	type AssetDeposit = AssetDeposit;
-	type AssetAccountDeposit = ConstU128<{ 1 * currency::PLT }>;
+	type AssetAccountDeposit = ConstU128<{ 1 * currency::PLAT }>;
 	type MetadataDepositBase = MetadataDepositBase;
 	type MetadataDepositPerByte = MetadataDepositPerByte;
 	type ApprovalDeposit = ApprovalDeposit;
@@ -664,7 +664,7 @@ impl pallet_template::Config for Runtime {
 }
 
 parameter_types! {
-	pub const CampaignDepositMinimum: Balance = currency::PLT;
+	pub const CampaignDepositMinimum: Balance = currency::PLAT;
 	pub const TaskPalletId: PalletId = PalletId(*b"plt/task");
 	pub const ClaimDuration: BlockNumber = 2;
 	pub const MaxTasks: u32 = 10;

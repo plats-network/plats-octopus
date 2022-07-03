@@ -1,5 +1,5 @@
 use appchain_plats_runtime::{
-	currency::{PLT, UNITS},
+	currency::{PLAT, UNITS},
 	opaque::{Block, SessionKeys},
 	AccountId, BabeConfig, Balance, BalancesConfig, GenesisConfig, GrandpaConfig, ImOnlineConfig,
 	OctopusAppchainConfig, OctopusLposConfig, SessionConfig, Signature, SudoConfig, SystemConfig,
@@ -159,7 +159,12 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 		None,
 		// Properties
 		None,
-		None,
+		Some(
+			serde_json::from_str(
+				"{\"tokenDecimals\": 18, \"tokenSymbol\": \"PLAT\", \"SS58Prefix\": 42}",
+			)
+			.expect("Provided valid json map"),
+		),
 		// Extensions
 		Default::default(),
 	))
@@ -192,8 +197,8 @@ fn testnet_genesis(
 
 	let validators = initial_authorities.iter().map(|x| (x.0.clone(), STASH)).collect::<Vec<_>>();
 
-	const ENDOWMENT: Balance = 10_000_000 * PLT;
-	const STASH: Balance = 100 * 1_000_000_000_000_000_000; // 100 OCT with 18 decimals
+	const ENDOWMENT: Balance = 10_000_000 * PLAT;
+	const STASH: Balance = 100 * UNITS; // 100 OCT with 18 decimals
 
 	GenesisConfig {
 		system: SystemConfig {
@@ -230,12 +235,12 @@ fn testnet_genesis(
 		transaction_payment: Default::default(),
 		beefy: Default::default(),
 		octopus_appchain: OctopusAppchainConfig {
-			anchor_contract: "".to_string(),
+			anchor_contract: "plats_network.near".to_string(),
 			asset_id_by_name: vec![("usdc.testnet".to_string(), 0)],
 			validators,
-			premined_amount: 1024 * PLT,
+			premined_amount: 30_000_000 * PLAT,
 		},
-		octopus_lpos: OctopusLposConfig { era_payout: 2 * PLT, ..Default::default() },
+		octopus_lpos: OctopusLposConfig { era_payout: 34_246 * PLAT, ..Default::default() },
 		octopus_assets: Default::default(),
 		sudo: SudoConfig {
 			// Assign network admin rights.
@@ -284,22 +289,18 @@ pub fn staging_testnet_config() -> Result<ChainSpec, String> {
 							.unchecked_into(),
 					),
 					(
-						// 5DnhhLqqpY8TgncVhj47UWSTvzbNJ7nbA3zz9o7iTxFNpLTw
 						hex!["4c43ffc97cd9b92db7ee3013a2d634bfc79ab779b51af66414929b132d0b8d1d"]
 							.into(),
-						// 5DnhhLqqpY8TgncVhj47UWSTvzbNJ7nbA3zz9o7iTxFNpLTw
 						hex!["4c43ffc97cd9b92db7ee3013a2d634bfc79ab779b51af66414929b132d0b8d1d"]
 							.unchecked_into(),
 						// 5GvqE5huBZMpLuZrbst6fJjhpKwyxyPgNDaNPqkw5ByHYfia
 						hex!["d72c02cd448732fac35c0424647ad08bb9a3610348f5b7e4181fb8be798f84b8"]
 							.unchecked_into(),
-						// 5DnhhLqqpY8TgncVhj47UWSTvzbNJ7nbA3zz9o7iTxFNpLTw
 						hex!["4c43ffc97cd9b92db7ee3013a2d634bfc79ab779b51af66414929b132d0b8d1d"]
 							.unchecked_into(),
 						// KWAzFTVhzgrvYhVeE2gRKXvP2c7PNutcMLMot7DJwFPmXKwt4
 						hex!["0364a077c26cc07d4c2db4abc15ff5fe1eba67f0c3c9aaabc3a22dc11ee1506ae4"]
 							.unchecked_into(),
-						// 5DnhhLqqpY8TgncVhj47UWSTvzbNJ7nbA3zz9o7iTxFNpLTw
 						hex!["4c43ffc97cd9b92db7ee3013a2d634bfc79ab779b51af66414929b132d0b8d1d"]
 							.unchecked_into(),
 					),
@@ -310,12 +311,12 @@ pub fn staging_testnet_config() -> Result<ChainSpec, String> {
 						// 5HVgMkXJGoDGQdnTyah4shbhuaiNCmAUdqCyTdYAnr9T9Y1Q
 						hex!["1abbfa43b14065a01ac7f9250b07977000c84a7caf97fbab5f26a9f21f49554f"]
 							.into(),
-						100_000_000 * PLT,
+						100_000_000 * PLAT,
 					),
 					(
 						hex!["16c1e8c292b0ca968ee84d3f33de819dd3d1466ee4a5a025c4c714582e29fa26"]
 							.into(),
-						100_000_000 * PLT,
+						100_000_000 * PLAT,
 					),
 				],
 				true,
@@ -331,7 +332,7 @@ pub fn staging_testnet_config() -> Result<ChainSpec, String> {
 		// Properties
 		Some(
 			serde_json::from_str(
-				"{\"tokenDecimals\": 18, \"tokenSymbol\": \"PLT\", \"SS58Prefix\": 42}",
+				"{\"tokenDecimals\": 18, \"tokenSymbol\": \"PLAT\", \"SS58Prefix\": 42}",
 			)
 			.expect("Provided valid json map"),
 		),
@@ -387,12 +388,12 @@ fn plats_testnet_genesis(
 		transaction_payment: Default::default(),
 		beefy: Default::default(),
 		octopus_appchain: OctopusAppchainConfig {
-			anchor_contract: "".to_string(),
-			asset_id_by_name: vec![("usdc.testnet".to_string(), 0)],
+			anchor_contract: "plats_network.testnet".to_string(),
+			asset_id_by_name: vec![("usdc.testnet".to_string(), 0),],
 			validators,
-			premined_amount: 1024 * PLT,
+			premined_amount: 30_000_000 * PLAT,
 		},
-		octopus_lpos: OctopusLposConfig { era_payout: 2 * PLT, ..Default::default() },
+		octopus_lpos: OctopusLposConfig { era_payout: 34_246 * PLAT, ..Default::default() },
 		octopus_assets: Default::default(),
 		sudo: SudoConfig {
 			// Assign network admin rights.
