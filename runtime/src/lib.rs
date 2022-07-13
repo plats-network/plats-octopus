@@ -58,7 +58,6 @@ use sp_runtime::{
 };
 use static_assertions::const_assert;
 
-
 /// Import the pallet task
 
 /// An index to a block.
@@ -655,7 +654,6 @@ impl pallet_sudo::Config for Runtime {
 	type Event = Event;
 	type Call = Call;
 }
-
 
 parameter_types! {
 	pub const CampaignDepositMinimum: Balance = currency::PLAT;
