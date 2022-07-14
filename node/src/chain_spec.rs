@@ -41,7 +41,7 @@ pub struct Extensions {
 pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig, Extensions>;
 /// Octopus testnet generator
 pub fn octopus_testnet_config() -> Result<ChainSpec, String> {
-	ChainSpec::from_json_bytes(&include_bytes!("../../resources/testnet.json")[..])
+	ChainSpec::from_json_bytes(&include_bytes!("../../resources/octopus-testnet.json")[..])
 }
 
 fn session_keys(
@@ -236,7 +236,7 @@ fn testnet_genesis(
 		beefy: Default::default(),
 		octopus_appchain: OctopusAppchainConfig {
 			anchor_contract: "plats_network.near".to_string(),
-			asset_id_by_name: vec![("usdc.testnet".to_string(), 0)],
+			asset_id_by_name: vec![("usdn.testnet".to_string(), 0)],
 			validators,
 			premined_amount: 30_000_000 * PLAT,
 		},
@@ -265,7 +265,7 @@ pub fn staging_testnet_config() -> Result<ChainSpec, String> {
 				wasm_binary,
 				// Sudo account
 				// 5HVgMkXJGoDGQdnTyah4shbhuaiNCmAUdqCyTdYAnr9T9Y1Q
-				hex!["16c1e8c292b0ca968ee84d3f33de819dd3d1466ee4a5a025c4c714582e29fa26"].into(),
+				hex!["622205c8f5b65af9a815c799af6fec1a866305a8d2a7821c7201a7f5150e4648"].into(),
 				// Initial PoA authorities
 				vec![
 					(
@@ -372,7 +372,7 @@ pub fn staging_testnet_config() -> Result<ChainSpec, String> {
 					(
 						hex!["622205c8f5b65af9a815c799af6fec1a866305a8d2a7821c7201a7f5150e4648"]
 							.into(),
-						10 * PLAT,
+						510 * PLAT,
 					),
 					(
 						hex!["244a8d85303f048feaab2413d510c175f48e0ca8b2f73bc7ea261e42a4ca2334"]
@@ -460,7 +460,7 @@ fn plats_testnet_genesis(
 		beefy: Default::default(),
 		octopus_appchain: OctopusAppchainConfig {
 			anchor_contract: "plats-network.registry.test_oct.testnet".to_string(),
-			asset_id_by_name: vec![("usdc.testnet".to_string(), 0)],
+			asset_id_by_name: vec![("usdn.testnet".to_string(), 0)],
 			validators,
 			premined_amount: 30_000_000 * PLAT,
 		},
