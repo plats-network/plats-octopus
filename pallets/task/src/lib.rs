@@ -94,13 +94,7 @@ pub mod pallet {
 	/// Store admin user account for special purpose
 	#[pallet::storage]
 	#[pallet::getter(fn admins)]
-	pub type Admins<T: Config> = StorageMap<
-		_, 
-		Twox64Concat,
-		T::AccountId,
-		bool,
-		OptionQuery,
-	>;
+	pub type Admins<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, bool, OptionQuery>;
 	/// Store balance of user that system pay when user finish campaign
 	#[pallet::storage]
 	#[pallet::getter(fn balance_of)]
@@ -145,9 +139,8 @@ pub mod pallet {
 		PermissionDeny,
 	}
 	#[pallet::genesis_config]
-	pub struct GenesisConfig<T:Config> {
-		pub admins : Vec<T::AccountId>,
-
+	pub struct GenesisConfig<T: Config> {
+		pub admins: Vec<T::AccountId>,
 	}
 
 	#[cfg(feature = "std")]
@@ -173,7 +166,6 @@ pub mod pallet {
 			for admin in self.admins.iter() {
 				Admins::<T>::insert(admin, true);
 			}
-
 		}
 	}
 
@@ -215,8 +207,6 @@ pub mod pallet {
 			users: Vec<T::AccountId>,
 			#[pallet::compact] amount: BalanceOf<T>,
 		) -> DispatchResult {
-
-
 			// T::RewardOrigin::ensure_origin(origin)?;
 			let caller = ensure_signed(origin)?;
 			if !Self::only_admin(caller) {
@@ -264,10 +254,9 @@ pub mod pallet {
 			Ok(())
 		}
 
-
 		/// add admin for special purposes
 		#[pallet::weight(10_000)]
-		pub fn add_admin(origin: OriginFor<T>, user: T::AccountId) -> DispatchResult{
+		pub fn add_admin(origin: OriginFor<T>, user: T::AccountId) -> DispatchResult {
 			let caller = ensure_signed(origin)?;
 
 			if !Self::only_admin(caller) {
