@@ -87,7 +87,7 @@ impl pallet_task::Config for Test {
 	type Currency = Balances;
 	type CampaignDepositMinimum = CampaignDepositMinimum;
 	type CampaignDeposit = CampaignDeposit;
-	type RewardOrigin = EnsureRoot<AccountId>;
+	// type RewardOrigin = EnsureRoot<AccountId>;
 	type ClaimDuration = ClaimDuration;
 	type PayoutDuration = PayoutDuration;
 	type PalletId = TaskPalletId;
