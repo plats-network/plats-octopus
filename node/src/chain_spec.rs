@@ -205,7 +205,10 @@ fn testnet_genesis(
 			// Add Wasm runtime to storage.
 			code: wasm_binary.to_vec(),
 		},
-		task: TaskConfig { admins: endowed_accounts.clone()[0..1].to_vec() },
+		task: TaskConfig { admins: vec![
+			get_account_id_from_seed::<sr25519::Public>("Alice"),
+			get_account_id_from_seed::<sr25519::Public>("Bob"),
+		] },
 		balances: BalancesConfig {
 			balances: endowed_accounts.iter().cloned().map(|x| (x, ENDOWMENT)).collect(),
 		},
@@ -361,12 +364,12 @@ pub fn staging_testnet_config() -> Result<ChainSpec, String> {
 				vec![
 					(
 						// 5HVgMkXJGoDGQdnTyah4shbhuaiNCmAUdqCyTdYAnr9T9Y1Q
-						hex!["1abbfa43b14065a01ac7f9250b07977000c84a7caf97fbab5f26a9f21f49554f"]
+						hex!["52461ef1eda1c95c11f29f82510019e996fd9ee502d5d95a55022f9d7732f140"]
 							.into(),
 						100_000_000 * PLAT,
 					),
 					(
-						hex!["16c1e8c292b0ca968ee84d3f33de819dd3d1466ee4a5a025c4c714582e29fa26"]
+						hex!["f27ab37e49df8e179107218df5816328b9dbe6730ddad481d60d36b817ed9b74"]
 							.into(),
 						100_000_000 * PLAT,
 					),
@@ -471,6 +474,9 @@ fn plats_testnet_genesis(
 			// Assign network admin rights.
 			key: Some(root_key),
 		},
-		task: Default::default(),
+		task: TaskConfig{ admins: vec![
+			hex!["52461ef1eda1c95c11f29f82510019e996fd9ee502d5d95a55022f9d7732f140"].into(),
+			hex!["f27ab37e49df8e179107218df5816328b9dbe6730ddad481d60d36b817ed9b74"].into(),
+		]},
 	}
 }
