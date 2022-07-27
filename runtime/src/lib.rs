@@ -116,7 +116,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("appchain-plats"),
 	impl_name: create_runtime_str!("plats"),
 	authoring_version: 1,
-	spec_version: 104,
+	spec_version: 105,
 	impl_version: 1,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -668,7 +668,7 @@ impl pallet_task::Config for Runtime {
 	type Currency = Balances;
 	type CampaignDepositMinimum = CampaignDepositMinimum;
 	type CampaignDeposit = CampaignDeposit;
-	type RewardOrigin = EnsureRoot<AccountId>;
+	// type RewardOrigin = EnsureRoot<AccountId>;
 	type ClaimDuration = ClaimDuration;
 	type PayoutDuration = PayoutDuration;
 	type PalletId = TaskPalletId;

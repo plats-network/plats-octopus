@@ -62,7 +62,7 @@ pub mod pallet {
 		#[pallet::constant]
 		type CampaignDeposit: Get<Permill>;
 
-		type RewardOrigin: EnsureOrigin<Self::Origin>;
+		// type RewardOrigin: EnsureOrigin<Self::Origin>;
 
 		// Duration that user can claim their token reward
 		type ClaimDuration: Get<Self::BlockNumber>;
@@ -91,6 +91,10 @@ pub mod pallet {
 		OptionQuery,
 	>;
 
+	/// Store admin user account for special purpose
+	#[pallet::storage]
+	#[pallet::getter(fn admins)]
+	pub type Admins<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, bool, OptionQuery>;
 	/// Store balance of user that system pay when user finish campaign
 	#[pallet::storage]
 	#[pallet::getter(fn balance_of)]
@@ -116,6 +120,12 @@ pub mod pallet {
 		Claim {
 			user: T::AccountId,
 		},
+		AddAdmin {
+			user: T::AccountId,
+		},
+		RemoveAdmin {
+			user: T::AccountId,
+		},
 	}
 
 	// Errors inform users that something went wrong.
@@ -126,19 +136,22 @@ pub mod pallet {
 		InvalidClaim,
 		UserNotReward,
 		CanNotClaim,
+		PermissionDeny,
 	}
 	#[pallet::genesis_config]
-	pub struct GenesisConfig;
+	pub struct GenesisConfig<T: Config> {
+		pub admins: Vec<T::AccountId>,
+	}
 
 	#[cfg(feature = "std")]
-	impl Default for GenesisConfig {
+	impl<T: Config> Default for GenesisConfig<T> {
 		fn default() -> Self {
-			Self
+			Self { admins: Default::default() }
 		}
 	}
 
 	#[pallet::genesis_build]
-	impl<T: Config> GenesisBuild<T> for GenesisConfig {
+	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
 		fn build(&self) {
 			//get campaign account
 			let account_id = <Pallet<T>>::account_id();
@@ -148,6 +161,10 @@ pub mod pallet {
 			if T::Currency::free_balance(&account_id) < min {
 				// give minimum balance for campaign account
 				let _ = T::Currency::make_free_balance_be(&account_id, min);
+			}
+
+			for admin in self.admins.iter() {
+				Admins::<T>::insert(admin, true);
 			}
 		}
 	}
@@ -190,7 +207,11 @@ pub mod pallet {
 			users: Vec<T::AccountId>,
 			#[pallet::compact] amount: BalanceOf<T>,
 		) -> DispatchResult {
-			T::RewardOrigin::ensure_origin(origin)?;
+			// T::RewardOrigin::ensure_origin(origin)?;
+			let caller = ensure_signed(origin)?;
+			if !Self::only_admin(caller) {
+				return Err(Error::<T>::PermissionDeny)?;
+			}
 
 			//Ensure this campaign is registered
 			ensure!(Campaigns::<T>::contains_key(&campaign_index), Error::<T>::CampaignNotExist);
@@ -223,9 +244,40 @@ pub mod pallet {
 			#[pallet::compact] amount: BalanceOf<T>,
 			user: T::AccountId,
 		) -> DispatchResult {
-			T::RewardOrigin::ensure_origin(origin)?;
+			let caller = ensure_signed(origin)?;
+			if !Self::only_admin(caller) {
+				return Err(Error::<T>::PermissionDeny)?;
+			}
+			// T::RewardOrigin::ensure_origin(origin)?;
 			let _ = Self::make_transfer(&user, amount)?;
 			Self::deposit_event(Event::Claim { user });
+			Ok(())
+		}
+
+		/// add admin for special purposes
+		#[pallet::weight(10_000)]
+		pub fn add_admin(origin: OriginFor<T>, user: T::AccountId) -> DispatchResult {
+			let caller = ensure_signed(origin)?;
+
+			if !Self::only_admin(caller) {
+				return Err(Error::<T>::PermissionDeny)?;
+			}
+
+			Admins::<T>::insert(&user, true);
+			Self::deposit_event(Event::AddAdmin { user });
+			Ok(())
+		}
+
+		/// remove admin for special purposes
+		#[pallet::weight(10_000)]
+		pub fn remove_admin(origin: OriginFor<T>, user: T::AccountId) -> DispatchResult {
+			let caller = ensure_signed(origin)?;
+			if !Self::only_admin(caller) {
+				return Err(Error::<T>::PermissionDeny)?;
+			}
+			Admins::<T>::remove(&user);
+			Self::deposit_event(Event::RemoveAdmin { user });
+
 			Ok(())
 		}
 	}
@@ -235,6 +287,9 @@ impl<T: Config> Pallet<T> {
 	///Get campaign account
 	pub fn account_id() -> T::AccountId {
 		T::PalletId::get().into_account()
+	}
+	pub fn only_admin(user: T::AccountId) -> bool {
+		Admins::<T>::get(user).unwrap_or(false)
 	}
 
 	#[transactional]
